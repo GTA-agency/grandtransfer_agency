@@ -78,10 +78,10 @@ export function NavPill({ links, actions, homeHref = "#top", tokenActive = false
             ))}
             <a
               href="/token"
-              className={`navpill-token${tokenActive ? " active" : ""}`}
+              className={tokenActive ? "active" : undefined}
               aria-current={tokenActive ? "page" : undefined}
             >
-              $GTA <span className="soon-tag">Soon</span>
+              $GTA
             </a>
           </nav>
           <div className="navpill-actions">{actions}</div>

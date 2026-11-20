@@ -49,9 +49,7 @@ export function Footer({ variant = "landing", onConnect, onStartRun, onDisconnec
               {label}
             </a>
           ))}
-          <a href="/token">
-            $GTA token <span className="soon-tag">Soon</span>
-          </a>
+          <a href="/token">$GTA</a>
         </div>
         <div className="footer-col">
           <h2>Account</h2>

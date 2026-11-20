@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { LegalPage } from "@/components/LegalPage";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/privacy" },
   title: "Privacy Policy · Grand Transfer Agent",
   description: "What Grand Transfer Agent stores, why, and who it is shared with.",
 };

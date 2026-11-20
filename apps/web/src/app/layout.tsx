@@ -11,10 +11,18 @@ const anton = Anton({
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://grandtransfer.agency"),
   title: "Grand Transfer Agent",
   description:
     "Your AI wallet agent for Robinhood Chain. You call the shots. The agent makes the run.",
-  robots: { index: false, follow: false },
+  openGraph: {
+    type: "website",
+    url: "https://grandtransfer.agency",
+    siteName: "Grand Transfer Agent",
+    title: "Grand Transfer Agent",
+    description:
+      "Your AI wallet agent for Robinhood Chain. You call the shots. The agent makes the run.",
+  },
   twitter: { card: "summary_large_image", site: "@grandtransferHQ", creator: "@grandtransferHQ" },
 };
 
