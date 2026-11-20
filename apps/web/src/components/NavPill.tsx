@@ -56,7 +56,7 @@ export function NavPill({ links, actions, homeHref = "#top", tokenActive = false
                 : "Grand Transfer Agent, home"
             }
           >
-            <img className="brand-mark" src="/gta-mark-v2.png" alt="" width={409} height={176} />
+            <img className="brand-mark brand-pp" src="/gta-pp.png" alt="" width={192} height={192} />
             <img
               className="brand-word"
               src="/gta-wordmark-v3.png"

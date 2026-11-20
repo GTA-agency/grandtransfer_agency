@@ -55,7 +55,7 @@ export function DemoChat() {
       <div className="phone-screen">
         <div className="phone-head">
           <div className="avatar-logo" aria-hidden="true">
-            <img src="/logo.png" alt="" width={1378} height={1015} />
+            <img src="/gta-pp.png" alt="" width={192} height={192} />
           </div>
           <div style={{ flex: 1 }}>
             <div className="who">Grand Transfer Agent</div>
