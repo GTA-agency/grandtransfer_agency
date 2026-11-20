@@ -330,7 +330,7 @@ export function Landing({ info, onSignedIn }: { info: SessionDto; onSignedIn: ()
           </div>
         </section>
       </main>
-      <Footer />
+      <Footer variant="landing" onConnect={open} />
       {connectOpen && (
         <ConnectModal onClose={() => setConnectOpen(false)} onSignedIn={onSignedIn} />
       )}

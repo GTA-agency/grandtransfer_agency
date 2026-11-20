@@ -130,7 +130,7 @@ export function Dashboard({
         <Books version={booksVersion} onSynced={loadOverview} />
         <LatestRuns entries={overview?.recent ?? null} />
       </main>
-      <Footer />
+      <Footer variant="app" onStartRun={startRun} onDisconnect={() => void lock()} />
       {quick && <QuickSend contact={quick} onClose={() => setQuick(null)} onOutcome={onOutcome} />}
       {result && <ResultOverlay view={result} onClose={() => setResult(null)} />}
     </>
