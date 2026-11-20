@@ -1,0 +1,23 @@
+{
+  "name": "@gta/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Wallet, chain, agent and ledger core for Grand Transfer Agent.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./chain": "./src/chain.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "smoke": "tsx scripts/smoke.ts",
+    "wallet": "tsx scripts/wallet-dev.ts",
+    "agent": "tsx scripts/agent-dev.ts",
+    "books": "tsx scripts/books-dev.ts"
+  },
+  "dependencies": {
+    "ethers": "^6.17.0",
+    "viem": "^2.58.0",
+    "zod": "^4.6.7"
+  }
+}

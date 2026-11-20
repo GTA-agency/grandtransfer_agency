@@ -1,0 +1,32 @@
+# Public deployment: the app behind Caddy, which gets and renews the HTTPS certificate.
+#   1. Point your domain's DNS (A/AAAA record) at this server.
+#   2. cp ../.env.example ../.env.public, fill it in (see docs/deploy.md), set GTA_DOMAIN below.
+#   3. docker compose up -d --build
+services:
+  gta:
+    build: ..
+    env_file: ../.env.public
+    environment:
+      GTA_PUBLIC_MODE: "true"
+      GTA_PUBLIC_ORIGIN: "https://${GTA_DOMAIN}"
+      GTA_TRUST_PROXY: "true"
+    volumes:
+      - gta-data:/data
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    depends_on: [gta]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      GTA_DOMAIN: ${GTA_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    restart: unless-stopped
+
+volumes:
+  gta-data:
+  caddy-data:

@@ -1,0 +1,8 @@
+{$GTA_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy gta:3000 {
+		# The app checks Host against GTA_PUBLIC_ORIGIN; pass the real one through.
+		header_up Host {host}
+		header_up X-Forwarded-For {remote_host}
+	}
+}

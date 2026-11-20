@@ -1,0 +1,29 @@
+# secrets — never commit
+.env
+.env.*
+!.env.example
+
+# local wallet data (encrypted keystore, SQLite ledger)
+data/
+
+# build / deps
+node_modules/
+dist/
+.next/
+*.tsbuildinfo
+
+# os / editor
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+
+# large local reference media
+*.mov
+
+# Cloudflare build output
+.open-next/
+.wrangler/
+.dev.vars
+
+# development screenshots (may show personal wallet addresses)
+assets/screenshots/

@@ -1,0 +1,33 @@
+{
+  "name": "grand-transfer-agent",
+  "private": true,
+  "type": "module",
+  "description": "Grand Transfer Agent \u2014 an AI wallet agent for Robinhood Chain.",
+  "scripts": {
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "pnpm -r typecheck",
+    "test": "vitest run",
+    "smoke": "pnpm --filter @gta/core smoke",
+    "wallet": "pnpm --filter @gta/core wallet",
+    "agent": "pnpm --filter @gta/core agent",
+    "books": "pnpm --filter @gta/core books",
+    "gta": "tsx apps/cli/src/index.ts",
+    "web": "pnpm --filter @gta/web dev",
+    "web:build": "pnpm --filter @gta/web build",
+    "web:start": "pnpm --filter @gta/web start"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.6",
+    "eslint": "^10.15.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.10.1",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.73.0",
+    "vitest": "^5.1.0"
+  },
+  "packageManager": "pnpm@12.18.0"
+}

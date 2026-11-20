@@ -1,0 +1,18 @@
+{
+  "name": "@gta/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Command-line interface for Grand Transfer Agent (built in phase 5).",
+  "bin": {
+    "gta": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "start": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@gta/core": "workspace:*",
+    "viem": "^2.58.0"
+  }
+}

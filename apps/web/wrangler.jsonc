@@ -1,0 +1,40 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "grand-transfer-agent",
+  // Next.js app (OpenNext) + the GtaHub Durable Object that serves /api. See worker.ts.
+  "main": "worker.ts",
+  "compatibility_date": "2026-11-16",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  // Served at https://grandtransfer.agency. The workers.dev address stays on but redirects there.
+  "workers_dev": true,
+  "preview_urls": false,
+  "routes": [
+    { "pattern": "grandtransfer.agency", "custom_domain": true },
+    { "pattern": "www.grandtransfer.agency", "custom_domain": true },
+  ],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS",
+  },
+  "services": [
+    // OpenNext's self-reference binding; the service name must match the worker name.
+    { "binding": "WORKER_SELF_REFERENCE", "service": "grand-transfer-agent" },
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "GTA_HUB", "class_name": "GtaHub" }],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["GtaHub"] }],
+  // Non-secret settings. OPENROUTER_API_KEY is a secret: `wrangler secret put OPENROUTER_API_KEY`.
+  "vars": {
+    "GTA_PUBLIC_MODE": "true",
+    "GTA_PUBLIC_ORIGIN": "https://grandtransfer.agency",
+    // Requests to any other production host (workers.dev, www) are redirected here.
+    "CANONICAL_HOST": "grandtransfer.agency",
+    "OPENROUTER_MODEL": "anthropic/claude-sonnet-5.5",
+    "MAX_TX_ETH": "0.05",
+    "MAX_DAILY_ETH": "0.2",
+    "AI_MESSAGES_PER_WALLET_DAY": "30",
+    "AI_DAILY_BUDGET_USD": "3",
+  },
+  "observability": { "enabled": true },
+}
