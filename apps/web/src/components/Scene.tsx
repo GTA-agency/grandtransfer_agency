@@ -195,7 +195,15 @@ function palmPaths(
     cy: top.y + 6 * scale + (k === 1 ? 3 * scale : 0),
     r: 4.2 * scale,
   }));
-  return { trunk, rings: rings.join(" "), fronds, coconuts };
+  return { trunk: fix(trunk), rings: fix(rings.join(" ")), fronds: fronds.map(fix), coconuts };
+}
+
+/**
+ * Rounds path numbers to 2 decimals. Math.sin/cos can differ in the last digit between the
+ * server (Node) and the browser, which made React report a hydration mismatch on the palms.
+ */
+function fix(path: string): string {
+  return path.replace(/-?\d+\.\d+/g, (n) => String(Math.round(Number(n) * 100) / 100));
 }
 
 export interface SceneProps {

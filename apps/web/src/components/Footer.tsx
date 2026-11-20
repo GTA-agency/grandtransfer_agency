@@ -4,8 +4,11 @@ import { IconKey } from "./Icons";
 const REPO = "https://github.com/GTA-agency/grandtransfer_agency";
 
 interface Props {
-  /** Landing page (signed out) or the dashboard (signed in): the links point to that page's sections. */
-  variant?: "landing" | "app";
+  /**
+   * Landing page (signed out), the dashboard (signed in), or a standalone page such as /token.
+   * The product links point to that page's sections ("page" links back to the landing sections).
+   */
+  variant?: "landing" | "app" | "page";
   onConnect?: () => void;
   onStartRun?: () => void;
   onDisconnect?: () => void;
@@ -25,7 +28,7 @@ export function Footer({ variant = "landing", onConnect, onStartRun, onDisconnec
           ["Features", "#features"],
           ["Three steps", "#steps"],
           ["Safety", "#safety"],
-        ];
+        ].map(([label, href]) => [label, variant === "page" ? `/${href}` : href]);
   return (
     <footer className="footer shell">
       <img src="/logo.png" alt="" width={1378} height={1015} />
@@ -46,6 +49,9 @@ export function Footer({ variant = "landing", onConnect, onStartRun, onDisconnec
               {label}
             </a>
           ))}
+          <a href="/token">
+            $GTA token <span className="soon-tag">Soon</span>
+          </a>
         </div>
         <div className="footer-col">
           <h2>Account</h2>
@@ -58,6 +64,8 @@ export function Footer({ variant = "landing", onConnect, onStartRun, onDisconnec
                 Disconnect
               </button>
             </>
+          ) : variant === "page" ? (
+            <a href="/">Connect wallet</a>
           ) : (
             <button type="button" onClick={onConnect}>
               Connect wallet

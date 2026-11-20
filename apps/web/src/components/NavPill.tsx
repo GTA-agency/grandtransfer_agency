@@ -4,13 +4,17 @@ import { useEffect, useState, type ReactNode } from "react";
 interface Props {
   links: { href: string; label: string }[];
   actions: ReactNode;
+  /** Where the logo goes: the top of this page (default) or the home page from other pages. */
+  homeHref?: string;
+  /** Highlights the $GTA link (on the token page). */
+  tokenActive?: boolean;
 }
 
 /**
  * Floating glass capsule: logo, section links (the one in view is highlighted) and actions.
  * Sticky, overlapping the top of the hero; it tightens and darkens once the page scrolls.
  */
-export function NavPill({ links, actions }: Props) {
+export function NavPill({ links, actions, homeHref = "#top", tokenActive = false }: Props) {
   const [scrolled, setScrolled] = useState(false);
   const [active, setActive] = useState<string | null>(null);
 
@@ -43,7 +47,11 @@ export function NavPill({ links, actions }: Props) {
     <header className={`navpill-wrap${scrolled ? " scrolled" : ""}`}>
       <div className="shell">
         <div className="navpill">
-          <a className="navpill-brand" href="#top" aria-label="Grand Transfer Agent, back to top">
+          <a
+            className="navpill-brand"
+            href={homeHref}
+            aria-label={homeHref === "#top" ? "Grand Transfer Agent, back to top" : "Grand Transfer Agent, home"}
+          >
             <img className="brand-mark" src="/gta-mark-v2.png" alt="" width={409} height={176} />
             <img
               className="brand-word"
@@ -64,6 +72,13 @@ export function NavPill({ links, actions }: Props) {
                 {l.label}
               </a>
             ))}
+            <a
+              href="/token"
+              className={`navpill-token${tokenActive ? " active" : ""}`}
+              aria-current={tokenActive ? "page" : undefined}
+            >
+              $GTA <span className="soon-tag">Soon</span>
+            </a>
           </nav>
           <div className="navpill-actions">{actions}</div>
         </div>
