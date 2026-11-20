@@ -6,7 +6,8 @@
   "description": "Wallet, chain, agent and ledger core for Grand Transfer Agent.",
   "exports": {
     ".": "./src/index.ts",
-    "./chain": "./src/chain.ts"
+    "./chain": "./src/chain.ts",
+    "./price": "./src/price.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",

@@ -12,3 +12,4 @@ export * from "./quota.ts";
 export * from "./rpc.ts";
 export * from "./transfers.ts";
 export * from "./vault.ts";
+export * from "./price.ts";

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef } from "react";
 import { trimEth } from "@/lib/format";
+import { usdLabel, useEthUsd } from "@/lib/usd";
 import { IconExternal } from "./Icons";
 import { Scene } from "./Scene";
 
@@ -16,6 +17,7 @@ export type ResultView =
   | { kind: "lose"; reason: string; hash?: string; explorerUrl?: string };
 
 export function ResultOverlay({ view, onClose }: { view: ResultView; onClose: () => void }) {
+  const usd = useEthUsd();
   const closeRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     closeRef.current?.focus();
@@ -59,7 +61,12 @@ export function ResultOverlay({ view, onClose }: { view: ResultView; onClose: ()
           ) : (
             <>
               <div>
-                <div className="amount">{view.amountEth} ETH</div>
+                <div className="amount">
+                  {view.amountEth} ETH
+                  {usdLabel(view.amountEth, usd) && (
+                    <span className="usd-inline big">{usdLabel(view.amountEth, usd)}</span>
+                  )}
+                </div>
                 <div className="muted">
                   to <strong style={{ color: "var(--cream)" }}>{view.to}</strong>
                   {view.feeEth && <> · gas {trimEth(view.feeEth, 9)} ETH</>}

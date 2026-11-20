@@ -240,6 +240,17 @@ on(
   false,
 );
 
+/** ETH/USD for "≈ $" labels. Public: it's a market price, not user data. */
+on(
+  "GET",
+  /^\/api\/price$/,
+  async ({ s }) => {
+    const q = await s.price.get();
+    return json(q ? { ethUsd: q.usd, source: q.source, at: q.at } : { ethUsd: null });
+  },
+  false,
+);
+
 // overview & chat -------------------------------------------------------------------------------
 
 on("GET", /^\/api\/overview$/, async ({ s, session, wallet }) => {

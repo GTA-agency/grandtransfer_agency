@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, errorMessage } from "@/lib/api";
 import { fmtDateTime, shortAddr, trimEth } from "@/lib/format";
+import { usdLabel, useEthUsd } from "@/lib/usd";
 import type { CategoryDto, EntryDto, PeriodPreset, RecapDto, SyncDto } from "@/shared/types";
 import { CategoryChart, InOutChart, Legend } from "./Charts";
 import { IconDownload, IconExternal, IconRefresh } from "./Icons";
@@ -142,13 +143,29 @@ export function Books({ version, onSynced }: Props) {
         {error && <p className="form-error">{error}</p>}
 
         <div className="tiles reveal">
-          <Tile k="Received" v={t ? signed("+", t.inEth) : "…"} accent="var(--chart-in)" />
-          <Tile k="Sent" v={t ? signed("-", t.outEth) : "…"} accent="var(--chart-out)" />
-          <Tile k="Gas spent" v={t ? trimEth(t.feeEth, 9) : "…"} accent="var(--peach)" />
+          <Tile
+            k="Received"
+            v={t ? signed("+", t.inEth) : "…"}
+            eth={t?.inEth}
+            accent="var(--chart-in)"
+          />
+          <Tile
+            k="Sent"
+            v={t ? signed("-", t.outEth) : "…"}
+            eth={t?.outEth}
+            accent="var(--chart-out)"
+          />
+          <Tile
+            k="Gas spent"
+            v={t ? trimEth(t.feeEth, 9) : "…"}
+            eth={t?.feeEth}
+            accent="var(--peach)"
+          />
           <Tile
             k="Net"
             v={t ? (t.netNegative ? trimEth(t.netEth, 9) : signed("+", t.netEth, 9)) : "…"}
             accent="var(--lime)"
+            eth={t?.netEth}
             sub={
               t
                 ? `${t.count} run${t.count === 1 ? "" : "s"}${t.pending ? ` · ${t.pending} pending` : ""}`
@@ -191,18 +208,24 @@ function Tile({
   v,
   accent,
   sub,
+  eth,
 }: {
   k: string;
   v: string;
   accent: string;
   sub?: string | undefined;
+  /** Exact ETH amount for the "≈ $" line. */
+  eth?: string | undefined;
 }) {
+  const usd = useEthUsd();
+  const usdSub = eth && eth !== "0" ? usdLabel(eth, usd) : null;
   return (
     <div className="tile" style={{ ["--accent" as string]: accent }}>
       <div className="k">{k}</div>
       <div className="v">
         {v} <span style={{ fontSize: "0.5em", color: "var(--text-2)" }}>ETH</span>
       </div>
+      {usdSub && <div className="s usd">{usdSub}</div>}
       {sub && <div className="s">{sub}</div>}
     </div>
   );

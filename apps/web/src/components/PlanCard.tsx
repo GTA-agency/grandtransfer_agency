@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { trimEth } from "@/lib/format";
+import { usdLabel, useEthUsd } from "@/lib/usd";
 import { useWalletName } from "@/lib/wallet-name";
 import type { DraftDto } from "@/shared/types";
 import { IconArrow, IconExternal, Stars } from "./Icons";
@@ -27,6 +28,9 @@ function useCountdown(until: number) {
 export function PlanCard({ draft, status, onFinished }: Props) {
   const send = useSendFlow();
   const walletName = useWalletName();
+  const usd = useEthUsd();
+  const amountUsd = usdLabel(draft.amountEth, usd);
+  const totalUsd = usdLabel(draft.totalEth, usd);
   const [busy, setBusy] = useState(false);
   const left = useCountdown(draft.expiresAt);
   const open = status === "open";
@@ -65,11 +69,17 @@ export function PlanCard({ draft, status, onFinished }: Props) {
         <dt>Address</dt>
         <dd className="mono">{draft.to}</dd>
         <dt>Amount</dt>
-        <dd className="strong">{draft.amountEth} ETH</dd>
+        <dd className="strong">
+          {draft.amountEth} ETH
+          {amountUsd && <span className="usd-inline">{amountUsd}</span>}
+        </dd>
         <dt>Est. gas</dt>
         <dd>{trimEth(draft.estimatedFeeEth, 9)} ETH max</dd>
         <dt className="total">Total</dt>
-        <dd className="total strong">{trimEth(draft.totalEth, 9)} ETH</dd>
+        <dd className="total strong">
+          {trimEth(draft.totalEth, 9)} ETH
+          {totalUsd && <span className="usd-inline">{totalUsd}</span>}
+        </dd>
         <dt>Network</dt>
         <dd>Robinhood Chain · 4663</dd>
         <dt>Signs with</dt>

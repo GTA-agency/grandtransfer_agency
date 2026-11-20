@@ -3266,3 +3266,44 @@ main#top > .hero:first-child .hero-body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* ---------- USD labels (≈ at the current price; display only) ---------- */
+.balance-usd {
+  margin-top: 8px;
+  font-family: var(--font-display);
+  font-size: clamp(20px, 2.4vw, 28px);
+  color: var(--cream);
+  opacity: 0.85;
+  letter-spacing: 0.02em;
+}
+.chip-usd {
+  font-size: 12px;
+  color: var(--text-2);
+  margin-top: 2px;
+}
+.usd-inline {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-3);
+}
+.usd-inline.big {
+  display: inline;
+  margin-left: 10px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--text-2);
+}
+.tile .s.usd {
+  color: var(--text-2);
+}
+
+/* nav links never wrap; on the dashboard the wordmark gives way to the wallet chip */
+.navpill-links a {
+  white-space: nowrap;
+}
+@media (max-width: 1640px) {
+  .navpill:has(.wallet-chip) .navpill-brand img.brand-word {
+    display: none;
+  }
+}

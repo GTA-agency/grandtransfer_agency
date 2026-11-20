@@ -1,10 +1,30 @@
+<p align="center">
+  <img src="docs/images/logo.png" alt="Grand Transfer Agent" width="300">
+</p>
+
+<p align="center">
+  <strong>You call the shots. The agent makes the run.</strong><br>
+  An AI wallet agent for Robinhood Chain.<br><br>
+  <a href="https://grandtransfer.agency"><strong>grandtransfer.agency</strong></a>
+</p>
+
+![Landing page](docs/images/landing.jpg)
+
 # Grand Transfer Agent
 
 An AI wallet agent for **Robinhood Chain** (mainnet, chain ID 4663). You type what you want, for example "send 0.01 ETH to robinhood". The agent looks up the address and checks your limits, then shows you a plan. Nothing moves until you confirm it.
 
+| Chat to plan a run                                                        | Your dashboard                                           |
+| ------------------------------------------------------------------------- | -------------------------------------------------------- |
+| ![The plan card, waiting for your confirmation](docs/images/the-plan.jpg) | ![Balance with its USD value](docs/images/dashboard.jpg) |
+
+<sub>Screenshots use demo data: a public test wallet and an example recipient.</sub>
+
 - **Send ETH by chat.** The agent prepares a plan with the recipient (name and full address), the amount, the estimated gas and a "wanted level". You confirm it, and the send is signed.
 - **Crew (contacts).** Save addresses by name, then ask for "my robinhood address" or send by name.
 - **The Books.** Incoming and outgoing transfers are logged from the chain. You can add categories and notes, see recaps and charts, and export to CSV.
+- **USD at a glance.** Balances, plans and recaps show an approximate dollar value next to the exact ETH amount (spot price from CoinGecko, with Coinbase and Kraken as fallbacks; display only, never used for limits).
+- **Incoming ETH alerts.** While the dashboard is open, even in a background tab, it checks the chain every minute and tells you when ETH arrives, optionally as a browser notification.
 - **Two interfaces.**
 
   | Interface   | Wallet                                           | Signs sends                          |

@@ -1,6 +1,7 @@
 "use client";
 import { useWalletName } from "@/lib/wallet-name";
 import { shortAddr, trimEth } from "@/lib/format";
+import { usdLabel, useEthUsd } from "@/lib/usd";
 import type { OverviewDto } from "@/shared/types";
 import { CopyButton } from "./CopyButton";
 import { IconExternal } from "./Icons";
@@ -10,6 +11,9 @@ import { Scene } from "./Scene";
 export function Hero({ overview, onStart }: { overview: OverviewDto | null; onStart: () => void }) {
   const o = overview;
   const walletName = useWalletName();
+  const usd = useEthUsd();
+  const balanceUsd = usdLabel(o?.balanceEth, usd);
+  const sentUsd = usdLabel(o?.sentLast24hEth, usd);
   const ref = useParallax<HTMLElement>();
   return (
     <section ref={ref} className="hero parallax" aria-labelledby="balance-title">
@@ -31,6 +35,7 @@ export function Hero({ overview, onStart }: { overview: OverviewDto | null; onSt
             {o ? (o.balanceEth !== null ? trimEth(o.balanceEth, 6) : "—") : "…"}
             <small>ETH</small>
           </div>
+          {balanceUsd && <div className="balance-usd">{balanceUsd}</div>}
           {o?.balanceError && (
             <p className="form-error" style={{ marginTop: 8 }}>
               {o.balanceError}
@@ -66,6 +71,7 @@ export function Hero({ overview, onStart }: { overview: OverviewDto | null; onSt
                 / {o?.limits.maxDailyEth ?? "…"}
               </span>
             </div>
+            {sentUsd && o?.sentLast24hEth !== "0" && <div className="chip-usd">{sentUsd}</div>}
             <div className="meter" aria-hidden="true">
               <span
                 style={{

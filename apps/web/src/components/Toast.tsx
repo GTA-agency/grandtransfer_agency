@@ -10,7 +10,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const show = useCallback((m: string) => {
     setMsg(m);
     clearTimeout(timer.current);
-    timer.current = setTimeout(() => setMsg(null), 2200);
+    // Long news (e.g. incoming ETH) stays up longer: about 2s plus reading time, at most 6s.
+    timer.current = setTimeout(() => setMsg(null), Math.min(6000, 2200 + m.length * 35));
   }, []);
   return (
     <Ctx.Provider value={show}>

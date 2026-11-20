@@ -2,6 +2,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useConnection, useDisconnect } from "wagmi";
 import { api } from "@/lib/api";
+import { incomingToast, useIncomingWatch } from "@/lib/incoming";
+import { useEthUsd } from "@/lib/usd";
 import { shortAddr } from "@/lib/format";
 import type { ContactDto, DraftDto, OverviewDto, SessionDto } from "@/shared/types";
 import { Books } from "./Books";
@@ -15,6 +17,7 @@ import { ResultOverlay, type ResultView } from "./ResultOverlay";
 import type { SendOutcome } from "./send-flow";
 import { ThePlan, type ThePlanHandle } from "./ThePlan";
 import { useRevealAll } from "./motion";
+import { useToast } from "./Toast";
 import { TopBar } from "./TopBar";
 
 export function Dashboard({
@@ -33,6 +36,16 @@ export function Dashboard({
   useRevealAll();
   const { address: mmAddress } = useConnection();
   const { mutate: disconnect } = useDisconnect();
+  const toast = useToast();
+  const ethUsd = useEthUsd();
+  const { notify, toggle: toggleNotify } = useIncomingWatch({
+    ethUsd,
+    onIncoming: (entries, o) => {
+      setOverview(o);
+      setBooksVersion((v) => v + 1);
+      toast(incomingToast(entries, ethUsd));
+    },
+  });
 
   const loadOverview = useCallback(() => {
     api<OverviewDto>("/api/overview").then(setOverview, () => {});
@@ -128,7 +141,11 @@ export function Dashboard({
           </div>
         </section>
         <Books version={booksVersion} onSynced={loadOverview} />
-        <LatestRuns entries={overview?.recent ?? null} />
+        <LatestRuns
+          entries={overview?.recent ?? null}
+          notify={notify}
+          onToggleNotify={() => void toggleNotify()}
+        />
       </main>
       <Footer variant="app" onStartRun={startRun} onDisconnect={() => void lock()} />
       {quick && <QuickSend contact={quick} onClose={() => setQuick(null)} onOutcome={onOutcome} />}

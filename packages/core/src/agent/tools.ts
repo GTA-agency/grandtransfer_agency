@@ -12,12 +12,15 @@ import {
   type WalletIdentity,
 } from "../transfers.ts";
 import { isNetworkError } from "../network.ts";
+import { formatUsd } from "../price.ts";
 import { VaultError, type WalletVault } from "../vault.ts";
 import type { ToolDefinition } from "./llm.ts";
 
 export interface AgentContext {
   /** The internal wallet, if this interface has one (the CLI does; the web app doesn't). */
   vault?: WalletVault;
+  /** Current ETH/USD price for "≈ $" labels; undefined when unknown. Optional. */
+  ethUsd?: () => Promise<string | undefined>;
   /** The wallet the agent talks about and plans for. Defaults to the vault. */
   wallet?: WalletIdentity;
   contacts: AddressBook;
@@ -189,6 +192,15 @@ export function draftView(d: TransferDraft) {
   };
 }
 
+/** The price is a nice-to-have: any failure just means no USD label. */
+async function usdPrice(ctx: AgentContext): Promise<string | undefined> {
+  try {
+    return await ctx.ethUsd?.();
+  } catch {
+    return undefined;
+  }
+}
+
 function errorResult(err: unknown): Record<string, unknown> {
   if (err instanceof TransferError) {
     const out: Record<string, unknown> = { error: err.code, message: err.message };
@@ -253,7 +265,14 @@ export async function runTool(
       case "get_balance": {
         const address = walletAddress(ctx);
         const wei = await ctx.chain.getBalance(address);
-        return { result: { address, balance_eth: formatEth(wei) } };
+        const usd = await usdPrice(ctx);
+        return {
+          result: {
+            address,
+            balance_eth: formatEth(wei),
+            ...(usd ? { balance_usd_approx: formatUsd(wei, usd) } : {}),
+          },
+        };
       }
 
       case "list_contacts":
@@ -305,7 +324,12 @@ export async function runTool(
           to: String(args.to),
           amountEth: String(args.amount_eth),
         });
-        return { result: { status: "awaiting_user_confirmation", plan: draftView(draft) }, draft };
+        const usd = await usdPrice(ctx);
+        const plan = {
+          ...draftView(draft),
+          ...(usd ? { amount_usd_approx: formatUsd(draft.amountWei, usd) } : {}),
+        };
+        return { result: { status: "awaiting_user_confirmation", plan }, draft };
       }
 
       case "get_ledger_summary": {

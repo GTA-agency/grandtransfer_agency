@@ -3,6 +3,7 @@ import type { Address, PublicClient } from "viem";
 import {
   AddressBook,
   AiQuota,
+  EthUsdPrice,
   Books,
   LOCAL_OWNER,
   LedgerStore,
@@ -70,6 +71,7 @@ export class ServerState {
   readonly chain: ChainOps;
   readonly quota: AiQuota;
   readonly limiter = new RateLimiter();
+  readonly price = new EthUsdPrice();
   private readonly history: ChainHistory;
   private readonly llm: LlmClient;
   private readonly usageLog: UsageLog;
@@ -159,6 +161,7 @@ export class ServerState {
           ledger: this.ledger,
           chain: this.chain,
           transfers: w.transfers,
+          ethUsd: async () => (await this.price.get())?.usd,
           now: Date.now,
         },
         usageLog: this.usageLog,
