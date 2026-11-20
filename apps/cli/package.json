@@ -9,10 +9,14 @@
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "start": "tsx src/index.ts"
+    "start": "tsx src/index.ts",
+    "build:npm": "node scripts/build-npm.mjs"
   },
   "dependencies": {
     "@gta/core": "workspace:*",
     "viem": "^2.58.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
   }
 }

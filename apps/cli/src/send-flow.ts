@@ -3,6 +3,7 @@ import {
   VaultError,
   explorerAddressUrl,
   formatEth,
+  formatUsd,
   type TransferDraft,
   type TransferResult,
   type TransferService,
@@ -21,18 +22,21 @@ export interface SendFlowDeps {
   vault: Pick<WalletVault, "isUnlocked" | "unlock">;
   prompt: Pick<Prompter, "ask" | "askHidden">;
   out: Out;
+  /** ETH/USD for "≈ $" labels; omitted when unknown. */
+  ethUsd?: string | undefined;
 }
 
 const MAX_TRIES = 3;
 
 /** The confirmation box shown before anything is signed. */
-export function planBox(d: TransferDraft): string[] {
+export function planBox(d: TransferDraft, ethUsd?: string): string[] {
+  const usd = (wei: bigint) => (ethUsd ? c.dim(` ≈ ${formatUsd(wei, ethUsd)}`) : "");
   const lines = rows([
     ["To", d.contactName ? c.bold(c.cream(d.contactName)) : c.gold("unknown address")],
     ["Address", c.cream(d.to)],
-    ["Amount", c.bold(c.cream(`${formatEth(d.amountWei)} ETH`))],
+    ["Amount", c.bold(c.cream(`${formatEth(d.amountWei)} ETH`)) + usd(d.amountWei)],
     ["Est. gas", `${formatEth(d.estimatedFeeWei)} ETH ${c.dim("(max)")}`],
-    ["Total", c.bold(`${formatEth(d.totalWei)} ETH`)],
+    ["Total", c.bold(`${formatEth(d.totalWei)} ETH`) + usd(d.totalWei)],
     ["Wanted level", stars(d.wantedLevel)],
     ["Network", "Robinhood Chain (4663)"],
   ]);
@@ -92,7 +96,7 @@ export async function confirmAndSend(
   deps: SendFlowDeps,
 ): Promise<SendOutcome> {
   const { out, prompt } = deps;
-  for (const l of planBox(draft)) out.line(l);
+  for (const l of planBox(draft, deps.ethUsd)) out.line(l);
   out.line();
 
   const answer = (await prompt.ask(`Type ${c.bold("yes")} to send, anything else to abort: `))

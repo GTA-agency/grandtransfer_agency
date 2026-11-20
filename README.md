@@ -63,6 +63,16 @@ chmod 600 .env
 
 ## CLI
 
+Install it from npm (Node.js 22.13+), no checkout needed:
+
+```bash
+npm install -g grand-transfer-agent
+gta setup     # your own OpenRouter API key, saved to ~/.grand-transfer-agent/.env
+gta init      # create or import your wallet
+```
+
+From a checkout of this repo, run the same commands with `pnpm gta …`:
+
 ```bash
 pnpm gta init                    # create a wallet, or import a recovery phrase or private key
 pnpm gta address                 # your address
@@ -171,4 +181,4 @@ pnpm lint
 pnpm format
 ```
 
-Grand Transfer Agent is an independent project. It is not affiliated with Rockstar Games, Take-Two Interactive or Robinhood.
+Licensed under [MIT](LICENSE). Grand Transfer Agent is an independent project. It is not affiliated with Rockstar Games, Take-Two Interactive or Robinhood.

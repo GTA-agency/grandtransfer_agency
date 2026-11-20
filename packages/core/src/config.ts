@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { parseEther } from "viem";
@@ -110,21 +110,46 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
   };
 }
 
-/** Walk up from `start` to the folder that holds pnpm-workspace.yaml. */
+/**
+ * Walk up from `start` to this project's own repo root (a pnpm workspace whose core package is
+ * @gta/core). Other projects' workspaces are ignored, so their .env files are never loaded.
+ */
 export function findRepoRoot(start: string = process.cwd()): string | undefined {
   let dir = resolve(start);
   for (;;) {
-    if (existsSync(join(dir, "pnpm-workspace.yaml"))) return dir;
+    if (existsSync(join(dir, "pnpm-workspace.yaml")) && isOurRepo(dir)) return dir;
     const parent = dirname(dir);
     if (parent === dir) return undefined;
     dir = parent;
   }
 }
 
-/** Load <repo root>/.env into process.env (if present), then validate process.env. */
+function isOurRepo(dir: string): boolean {
+  try {
+    const pkg = JSON.parse(readFileSync(join(dir, "packages/core/package.json"), "utf8")) as {
+      name?: string;
+    };
+    return pkg.name === "@gta/core";
+  } catch {
+    return false;
+  }
+}
+
+/** Where `gta setup` keeps the user's settings (API key, model). */
+export function userConfigPath(env: Record<string, string | undefined> = process.env): string {
+  const dir = env.DATA_DIR?.trim() || join(homedir(), ".grand-transfer-agent");
+  return join(resolve(dir), ".env");
+}
+
+/**
+ * Settings come from, strongest first: the real environment, the repo's .env (when running from
+ * a checkout of this project), then the user's own settings file written by `gta setup`.
+ */
 export function loadConfigFromEnv(): Config {
   const root = findRepoRoot();
-  const envFile = root ? join(root, ".env") : undefined;
-  if (envFile && existsSync(envFile)) process.loadEnvFile(envFile);
+  const repoEnv = root ? join(root, ".env") : undefined;
+  if (repoEnv && existsSync(repoEnv)) process.loadEnvFile(repoEnv);
+  const userEnv = userConfigPath();
+  if (existsSync(userEnv)) process.loadEnvFile(userEnv);
   return loadConfig(process.env);
 }

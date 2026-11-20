@@ -12,7 +12,12 @@ import {
 import * as cmd from "./commands.ts";
 import { createContext } from "./context.ts";
 import { CancelledError, createPrompter } from "./prompt.ts";
+import { setup } from "./setup.ts";
 import { fail, stdout } from "./ui.ts";
+
+/** Set by the npm build; "dev" when running from source. */
+declare const __GTA_VERSION__: string | undefined;
+const VERSION = typeof __GTA_VERSION__ === "string" ? __GTA_VERSION__ : "dev";
 
 const KNOWN = [
   AmountError,
@@ -38,8 +43,17 @@ async function main(argv: string[]): Promise<number> {
     cmd.help(out);
     return 0;
   }
+  if (command === "--version" || command === "-v" || command === "version") {
+    out.line(VERSION);
+    return 0;
+  }
   const prompt = createPrompter();
   try {
+    // Before loading settings: setup is how a fresh install gets them.
+    if (command === "setup") {
+      await setup(prompt, out);
+      return 0;
+    }
     const env: cmd.CommandEnv = { ctx: createContext(), prompt, out };
     switch (command) {
       case "init":

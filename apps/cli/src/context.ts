@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import {
   AddressBook,
+  EthUsdPrice,
   Books,
   LedgerStore,
   LedgerSync,
@@ -33,6 +34,8 @@ export interface AppContext {
   usagePath: string;
   sync(): LedgerSync;
   agent(): WalletAgent;
+  /** Current ETH/USD (display only), or undefined when no source answers quickly. */
+  ethUsd(): Promise<string | undefined>;
 }
 
 export function createContext(): AppContext {
@@ -54,6 +57,8 @@ export function createContext(): AppContext {
   const usagePath = join(config.dataDir, "usage.jsonl");
   let sync: LedgerSync | undefined;
   let agent: WalletAgent | undefined;
+  const price = new EthUsdPrice();
+  const ethUsd = async () => (await price.get())?.usd;
   return {
     config,
     db,
@@ -65,6 +70,7 @@ export function createContext(): AppContext {
     chain,
     transfers,
     usagePath,
+    ethUsd,
     sync: () =>
       (sync ??= new LedgerSync({
         db,
@@ -79,7 +85,7 @@ export function createContext(): AppContext {
           model: config.openRouterModel,
         }),
         model: config.openRouterModel,
-        ctx: { vault, contacts, ledger, chain, transfers, now: Date.now },
+        ctx: { vault, contacts, ledger, chain, transfers, ethUsd, now: Date.now },
         usageLog: createFileUsageLog(usagePath),
       })),
   };

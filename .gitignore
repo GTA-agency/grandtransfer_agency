@@ -27,3 +27,7 @@ dist/
 
 # development screenshots (may show personal wallet addresses)
 assets/screenshots/
+
+# npm package build output
+apps/cli/npm-dist/
+*.tgz

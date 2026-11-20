@@ -8,6 +8,7 @@ import {
   formatEth,
   readUsageTotals,
   type PeriodPreset,
+  formatUsd,
 } from "@gta/core";
 import type { AppContext } from "./context.ts";
 import type { Prompter } from "./prompt.ts";
@@ -150,9 +151,10 @@ export async function balance({ ctx, out }: CommandEnv): Promise<void> {
   await assertRobinhoodChain(ctx.client);
   const wei = await ctx.client.getBalance({ address: a });
   const sent24h = ctx.ledger.sumOutgoingSince(a, Date.now() - 86_400_000);
+  const usd = await ctx.ethUsd();
   for (const l of box(
     [
-      c.bold(c.cream(eth(wei))),
+      c.bold(c.cream(eth(wei))) + (usd ? c.dim(`  ≈ ${formatUsd(wei, usd)}`) : ""),
       c.dim(a),
       "",
       ...rows([
@@ -237,6 +239,7 @@ export async function send({ ctx, prompt, out }: CommandEnv, args: string[]): Pr
     vault: ctx.vault,
     prompt,
     out,
+    ethUsd: await ctx.ethUsd(),
   });
   return outcome.kind === "sent";
 }
@@ -309,6 +312,7 @@ export async function chat({ ctx, prompt, out }: CommandEnv): Promise<void> {
         vault: ctx.vault,
         prompt,
         out,
+        ethUsd: await ctx.ethUsd(),
       });
       const d = res.draft;
       const what = `${formatEth(d.amountWei)} ETH to ${d.contactName ?? d.to}`;
@@ -379,15 +383,19 @@ export async function books({ ctx, out }: CommandEnv, args: string[]): Promise<v
   const p = preset(args[0]);
   const r = ctx.books.recap(a, ctx.books.period(p, a));
   const range = `${localDate(r.period.from)} → ${localDate(r.period.to - 1)}`;
+  const usd = await ctx.ethUsd();
+  const approx = (wei: bigint) => (usd && wei !== 0n ? c.dim(`  ≈ ${formatUsd(wei, usd)}`) : "");
   const net =
-    r.totals.netWei >= 0n ? c.lime(`+${eth(r.totals.netWei)}`) : c.red(`-${eth(-r.totals.netWei)}`);
+    (r.totals.netWei >= 0n
+      ? c.lime(`+${eth(r.totals.netWei)}`)
+      : c.red(`-${eth(-r.totals.netWei)}`)) + approx(r.totals.netWei);
   for (const l of box(
     [
       c.dim(range),
       "",
       ...rows([
-        ["Received", c.mint(eth(r.totals.inWei))],
-        ["Sent", c.pink(eth(r.totals.outWei))],
+        ["Received", c.mint(eth(r.totals.inWei)) + approx(r.totals.inWei)],
+        ["Sent", c.pink(eth(r.totals.outWei)) + approx(r.totals.outWei)],
         ["Gas", eth(r.totals.feeWei)],
         ["Net", net],
         [
@@ -545,6 +553,7 @@ export function help(out: Out): void {
   out.line(banner());
   out.line();
   const cmds: [string, string][] = [
+    ["setup", "save your OpenRouter API key (for chat)"],
     ["init", "create or import your wallet"],
     ["address", "show your address"],
     ["balance", "ETH balance and limits"],
