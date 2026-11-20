@@ -43,8 +43,8 @@ export function createPrompter(): Prompter {
   };
 
   const ask = async (question: string): Promise<string> => {
-    process.stderr.write(question);
     if (!process.stdin.isTTY) {
+      process.stderr.write(question);
       const line = await pipedLine();
       process.stderr.write("\n");
       return line;
@@ -60,7 +60,9 @@ export function createPrompter(): Prompter {
       i.on("close", () => {
         if (!answered) reject(new CancelledError());
       });
-      i.question("", (a) => {
+      // readline redraws its own prompt line, so the question goes through it (writing it
+      // first would get wiped and the user would type at an empty line).
+      i.question(question, (a) => {
         answered = true;
         i.close();
         resolve(a);

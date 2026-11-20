@@ -48,7 +48,10 @@ function needWallet(ctx: AppContext) {
 
 // ---------------------------------------------------------------- init
 
-export async function init({ ctx, prompt, out }: CommandEnv): Promise<void> {
+export async function init(
+  { ctx, prompt, out }: CommandEnv,
+  opts: { keepUnlocked?: boolean } = {},
+): Promise<void> {
   if (ctx.vault.exists()) {
     throw new UsageError(
       `You already have a wallet (${ctx.vault.address}). Refusing to replace it.`,
@@ -116,6 +119,7 @@ export async function init({ ctx, prompt, out }: CommandEnv): Promise<void> {
     address = (await ctx.vault.importPrivateKey(secret, password)).address;
   }
 
+  if (opts.keepUnlocked) await ctx.vault.unlock(password);
   out.line();
   out.line(ok(`Wallet ready: ${c.bold(c.cream(address))}`));
   out.line(c.dim(`  Keystore (encrypted): ${ctx.vault.keystorePath}`));
@@ -247,7 +251,10 @@ export async function send({ ctx, prompt, out }: CommandEnv, args: string[]): Pr
 
 // ---------------------------------------------------------------- chat
 
-export async function chat({ ctx, prompt, out }: CommandEnv): Promise<void> {
+export async function chat(
+  { ctx, prompt, out }: CommandEnv,
+  opts: { banner?: boolean } = {},
+): Promise<void> {
   needWallet(ctx);
   // Hosted agent: the first message signs in with this wallet (free, not a transaction).
   const unlock = async () => {
@@ -271,18 +278,14 @@ export async function chat({ ctx, prompt, out }: CommandEnv): Promise<void> {
     }
   };
   const agent = ctx.agent(unlock);
-  out.line(banner());
+  if (opts.banner !== false) out.line(banner());
   out.line(
     c.dim(
       `Talk to your agent. Try "what's my balance?" or "send 0.01 eth to robinhood". /exit to leave.`,
     ),
   );
   if (ctx.hosted) {
-    out.line(
-      c.dim(
-        "Using the free hosted agent (daily message limit). Prefer your own OpenRouter key? Run `gta setup`.",
-      ),
-    );
+    out.line(c.dim("Free to use, no API key needed. Daily message limit per wallet."));
   }
   for (;;) {
     let text: string;
@@ -582,6 +585,7 @@ export function help(out: Out): void {
   out.line(banner());
   out.line();
   const cmds: [string, string][] = [
+    ["", "start here: sets up your wallet if needed, then opens the agent"],
     ["init", "create or import your wallet"],
     ["address", "show your address"],
     ["balance", "ETH balance and limits"],
@@ -595,12 +599,22 @@ export function help(out: Out): void {
     ["note <hash> <text>", "add a note"],
     ["categories [add|remove <name>]", "manage categories"],
     ["export [file.csv] [period]", "CSV export"],
-    ["usage", "AI cost so far (with your own key)"],
-    ["setup", "optional: use your own OpenRouter key (no daily limit)"],
   ];
-  for (const l of rows(cmds.map(([k, v]) => [c.pink(`gta ${k}`), v]))) out.line(`  ${l}`);
-  out.line();
-  out.line(
-    `  New here? Run ${c.pink("gta init")} to set up your wallet, then ${c.pink("gta chat")}.`,
-  );
+  for (const l of rows(cmds.map(([k, v]) => [c.pink(`gta ${k}`.trim()), v]))) out.line(`  ${l}`);
+}
+
+/**
+ * `gta` on its own: ready to use right away. Without a wallet it walks through creating or
+ * importing one, then opens the chat (no API key, no other setup).
+ */
+export async function start(env: CommandEnv): Promise<void> {
+  if (!env.ctx.vault.exists()) {
+    await init(env, { keepUnlocked: true });
+    env.out.line();
+    env.out.line(c.dim(`  Starting your agent… (${c.pink("gta help")} lists every command.)`));
+    env.out.line();
+    await chat(env, { banner: false });
+    return;
+  }
+  await chat(env);
 }

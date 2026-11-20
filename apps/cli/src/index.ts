@@ -39,7 +39,7 @@ process.stdout.on("error", (err: NodeJS.ErrnoException) => {
 async function main(argv: string[]): Promise<number> {
   const [command, ...args] = argv;
   const out = stdout;
-  if (!command || command === "help" || command === "--help" || command === "-h") {
+  if (command === "help" || command === "--help" || command === "-h") {
     cmd.help(out);
     return 0;
   }
@@ -56,6 +56,9 @@ async function main(argv: string[]): Promise<number> {
     }
     const env: cmd.CommandEnv = { ctx: createContext(), prompt, out };
     switch (command) {
+      case undefined:
+        await cmd.start(env);
+        break;
       case "init":
         await cmd.init(env);
         break;

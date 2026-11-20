@@ -65,15 +65,13 @@ chmod 600 .env
 
 ## CLI
 
-Install it from npm (Node.js 22.13+), no checkout needed:
+Install it from npm (Node.js 22.13+), no checkout needed. One line installs and starts it:
 
 ```bash
-npm i -g grand-transfer-agent && gta   # installs and opens the menu
-gta init      # create or import your wallet
-gta chat      # talk to the agent: no API key needed
+npm i -g grand-transfer-agent && gta
 ```
 
-`gta chat` uses the free hosted agent at grandtransfer.agency (it signs in with your wallet; daily message limit per wallet). For no limit, `gta setup` saves your own OpenRouter key to `~/.grand-transfer-agent/.env`.
+The first run sets up your wallet and opens the agent. No API key needed: the CLI talks to the same agent as the web app (daily message limit per wallet). After that, just type `gta`.
 
 From a checkout of this repo, run the same commands with `pnpm gta …`:
 

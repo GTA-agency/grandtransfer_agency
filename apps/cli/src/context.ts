@@ -22,6 +22,7 @@ import {
   type Database,
 } from "@gta/core";
 import type { PublicClient } from "viem";
+import { looksLikeModelId, looksLikeOpenRouterKey } from "./openrouter-key.ts";
 
 export interface AppContext {
   config: Config;
@@ -48,6 +49,14 @@ export interface AppContext {
 
 export function createContext(): AppContext {
   const config = loadConfigFromEnv();
+  // Only a real OpenRouter key switches chat away from the hosted agent; anything else saved by
+  // mistake (a typo, a half-pasted key) is ignored instead of breaking chat.
+  const ownKey = looksLikeOpenRouterKey(config.openRouterApiKey)
+    ? config.openRouterApiKey
+    : undefined;
+  const ownModel = looksLikeModelId(config.openRouterModel)
+    ? config.openRouterModel
+    : "anthropic/claude-sonnet-5.5";
   const db = openDatabase(config.dataDir);
   const vault = new WalletVault(config.dataDir);
   const contacts = new AddressBook(db);
@@ -86,11 +95,11 @@ export function createContext(): AppContext {
         contacts,
         history: createViemHistory(config.archiveRpcUrl),
       })),
-    hosted: !config.openRouterApiKey,
+    hosted: !ownKey,
     agent: (unlock) =>
       (agent ??= new WalletAgent({
-        llm: config.openRouterApiKey
-          ? new OpenRouterClient({ apiKey: config.openRouterApiKey, model: config.openRouterModel })
+        llm: ownKey
+          ? new OpenRouterClient({ apiKey: ownKey, model: ownModel })
           : new HostedLlmClient({
               origin: (process.env.GTA_AGENT_URL ?? DEFAULT_HOSTED_AGENT_URL).replace(/\/$/, ""),
               address: vault.address,
@@ -100,7 +109,7 @@ export function createContext(): AppContext {
                 return vault.getAccount();
               },
             }),
-        model: config.openRouterApiKey ? config.openRouterModel : "hosted",
+        model: ownKey ? ownModel : "hosted",
         ctx: { vault, contacts, ledger, chain, transfers, ethUsd, now: Date.now },
         usageLog: createFileUsageLog(usagePath),
       })),

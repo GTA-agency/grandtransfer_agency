@@ -10,26 +10,21 @@ Web app: [grandtransfer.agency](https://grandtransfer.agency) · Source: [GitHub
 
 ## Install
 
-Requires **Node.js 22.13 or newer**.
+Requires **Node.js 22.13 or newer**. One line installs it and starts it:
 
 ```bash
 npm i -g grand-transfer-agent && gta
 ```
 
-That installs the `gta` command and opens its menu. Then:
+The first run creates (or imports) your wallet and opens the agent right away. No API key and no other setup: chat runs on the same agent as [grandtransfer.agency](https://grandtransfer.agency), with a daily message limit per wallet. Signing in is a free message from your wallet, never a transaction, and your keys and password never leave your machine.
 
-```bash
-gta init       # create a wallet, or import a recovery phrase or private key
-gta chat       # talk to the agent
-```
-
-**No API key needed.** `gta chat` uses the free hosted agent at [grandtransfer.agency](https://grandtransfer.agency): it signs in with your wallet (a free message, never a transaction) and has a daily message limit per wallet. Your keys and password never leave your machine.
-
-Want no daily limit? Run `gta setup` to use your own [OpenRouter](https://openrouter.ai/keys) key instead. It is saved to `~/.grand-transfer-agent/.env`, readable only by you.
+Next time, just type `gta`.
 
 ## Commands
 
 ```bash
+gta                            # start: the agent (sets up your wallet the first time)
+gta init                       # create or import a wallet (gta does this for you the first time)
 gta address                    # your address
 gta balance                    # ETH balance (≈ USD) and your limits
 gta contacts add robinhood 0x… # save an address by name
@@ -41,8 +36,7 @@ gta history 20                 # latest transactions
 gta tag <hash> Food            # categorize
 gta note <hash> "rent split"   # add a note
 gta export books.csv month     # CSV
-gta usage                      # AI cost so far (with your own key)
-gta setup                      # optional: your own OpenRouter key
+gta help                       # every command
 gta --version
 ```
 
@@ -60,8 +54,6 @@ All settings can go in `~/.grand-transfer-agent/.env` or the environment:
 
 | Variable                       | Default                                    |
 | ------------------------------ | ------------------------------------------ |
-| `OPENROUTER_API_KEY`           | none: chat uses the hosted agent           |
-| `OPENROUTER_MODEL`             | `anthropic/claude-sonnet-5.5`              |
 | `RPC_URL`                      | public Robinhood Chain RPCs, with fallback |
 | `ARCHIVE_RPC_URL`              | `https://robinhood.drpc.org`               |
 | `DATA_DIR`                     | `~/.grand-transfer-agent`                  |

@@ -1,10 +1,13 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { userConfigPath } from "@gta/core";
+import { looksLikeModelId, looksLikeOpenRouterKey } from "./openrouter-key.ts";
 import type { Prompter } from "./prompt.ts";
 import { banner, c, ok, warn, type Out } from "./ui.ts";
 
 const DEFAULT_MODEL = "anthropic/claude-sonnet-5.5";
+const KEY = "OPENROUTER_API_KEY";
+const MODEL = "OPENROUTER_MODEL";
 
 /** Read KEY=value lines (comments and blank lines are kept as-is). */
 function readLines(path: string): string[] {
@@ -29,6 +32,16 @@ function setValue(lines: string[], key: string, value: string): string[] {
   return [...lines.filter((l, j) => !(j === lines.length - 1 && l === "")), `${key}=${value}`, ""];
 }
 
+function removeValue(lines: string[], key: string): string[] {
+  return lines.filter((l) => !new RegExp(`^\\s*${key}\\s*=`).test(l));
+}
+
+function save(path: string, lines: string[]): void {
+  mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+  writeFileSync(path, lines.join("\n"), { mode: 0o600 });
+  chmodSync(path, 0o600);
+}
+
 /** Checks a key against OpenRouter; returns false only when OpenRouter clearly rejects it. */
 async function keyLooksValid(key: string): Promise<boolean | undefined> {
   try {
@@ -44,45 +57,89 @@ async function keyLooksValid(key: string): Promise<boolean | undefined> {
 }
 
 /**
- * `gta setup`: saves the user's own OpenRouter API key (and model) to
- * ~/.grand-transfer-agent/.env with owner-only permissions. Wallet keys are never stored here.
+ * `gta setup`: picks how `gta chat` gets its AI. The free hosted agent needs nothing; an own
+ * OpenRouter key (saved to ~/.grand-transfer-agent/.env, owner-only) removes the daily limit.
+ * Nothing invalid is ever saved. Wallet keys are never stored here.
  */
 export async function setup(prompt: Prompter, out: Out): Promise<void> {
   const path = userConfigPath();
   let lines = readLines(path);
-  const currentKey = getValue(lines, "OPENROUTER_API_KEY");
-  const currentModel = getValue(lines, "OPENROUTER_MODEL") ?? DEFAULT_MODEL;
+  const savedKey = getValue(lines, KEY);
+  const currentKey = looksLikeOpenRouterKey(savedKey) ? savedKey : undefined;
+  const currentModel = getValue(lines, MODEL);
 
   out.line(banner());
   out.line();
-  out.line("Optional: bring your own OpenRouter key for unlimited chat.");
-  out.line(c.dim("  Without one, `gta chat` uses the free hosted agent at grandtransfer.agency."));
-  out.line(c.dim("  https://openrouter.ai/keys  (a few dollars of credit lasts a long time)"));
-  out.line(c.dim(`  Saved to ${path}, readable only by you.`));
+  out.line(
+    `Chat now runs on: ${
+      currentKey
+        ? c.pink(`your OpenRouter key …${currentKey.slice(-4)}`)
+        : c.pink("the free hosted agent (no key needed)")
+    }`,
+  );
   out.line();
+  out.line(`  ${c.pink("1")}  Free hosted agent: nothing to set up, daily message limit`);
+  out.line(`  ${c.pink("2")}  My own OpenRouter key: no daily limit, you pay OpenRouter`);
+  out.line();
+  const choice = (await prompt.ask("Choose 1 or 2 (Enter keeps it as is): ")).trim();
 
+  if (choice === "1") {
+    const hadSomething = savedKey !== undefined || currentModel !== undefined;
+    lines = removeValue(removeValue(lines, KEY), MODEL);
+    if (hadSomething) save(path, lines);
+    out.line(ok("Chat uses the free hosted agent. No key needed."));
+    out.line(
+      c.dim(`  Next: ${c.pink("gta init")} to set up your wallet, then ${c.pink("gta chat")}.`),
+    );
+    return;
+  }
+
+  if (choice !== "2") {
+    if (savedKey && !currentKey) {
+      // A broken value from an earlier run: drop it so it can't confuse anything later.
+      save(path, removeValue(removeValue(lines, KEY), MODEL));
+      out.line(warn("Removed a saved key that wasn't a valid OpenRouter key."));
+    }
+    out.line(ok("Nothing changed."));
+    return;
+  }
+
+  out.line();
+  out.line(
+    c.dim("  Get a key at https://openrouter.ai/keys (a few dollars of credit lasts long)."),
+  );
+  out.line(c.dim(`  It is saved to ${path}, readable only by you.`));
   const hint = currentKey ? ` [Enter keeps …${currentKey.slice(-4)}]` : "";
   let key = (await prompt.askHidden(`OpenRouter API key${hint}: `)).trim();
   if (!key && currentKey) key = currentKey;
-  if (key) {
-    if (!/^sk-or-[A-Za-z0-9_-]{10,}$/.test(key)) {
-      out.line(warn("That doesn't look like an OpenRouter key (they start with sk-or-)."));
-    } else if (key !== currentKey) {
-      const valid = await keyLooksValid(key);
-      if (valid === false) out.line(warn("OpenRouter rejected this key. Saved anyway; check it."));
-      else if (valid === true) out.line(ok("OpenRouter accepted the key."));
+  if (!key) {
+    out.line(warn("No key entered. Nothing changed."));
+    return;
+  }
+  if (!looksLikeOpenRouterKey(key)) {
+    out.line(warn("That isn't an OpenRouter key (they start with sk-or-). Nothing saved."));
+    return;
+  }
+  if (key !== currentKey) {
+    const valid = await keyLooksValid(key);
+    if (valid === false) {
+      out.line(warn("OpenRouter rejected this key. Nothing saved."));
+      return;
     }
-    lines = setValue(lines, "OPENROUTER_API_KEY", key);
-  } else {
-    out.line(c.dim("No key: `gta chat` uses the free hosted agent (daily limit)."));
+    if (valid === true) out.line(ok("OpenRouter accepted the key."));
   }
 
-  const model = (await prompt.ask(`Model [${currentModel}]: `)).trim() || currentModel;
-  lines = setValue(lines, "OPENROUTER_MODEL", model);
+  const keepModel = currentModel && looksLikeModelId(currentModel) ? currentModel : DEFAULT_MODEL;
+  let model = (await prompt.ask(`Model [Enter keeps ${keepModel}]: `)).trim() || keepModel;
+  if (!looksLikeModelId(model)) {
+    out.line(warn(`"${model}" isn't a model id (like ${DEFAULT_MODEL}). Keeping ${keepModel}.`));
+    model = keepModel;
+  }
 
-  mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
-  writeFileSync(path, lines.join("\n"), { mode: 0o600 });
-  chmodSync(path, 0o600);
+  lines = setValue(setValue(lines, KEY, key), MODEL, model);
+  save(path, lines);
   out.line();
-  out.line(ok(`Saved. Next: ${c.pink("gta init")} to create or import your wallet.`));
+  out.line(
+    ok(`Saved. Chat now uses your own key. Next: ${c.pink("gta init")} if you haven't yet.`),
+  );
 }
