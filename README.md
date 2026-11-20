@@ -5,7 +5,9 @@
 <p align="center">
   <strong>You call the shots. The agent makes the run.</strong><br>
   An AI wallet agent for Robinhood Chain.<br><br>
-  <a href="https://grandtransfer.agency"><strong>grandtransfer.agency</strong></a>
+  <a href="https://grandtransfer.agency"><strong>grandtransfer.agency</strong></a> ·
+  <a href="https://x.com/grandtransferHQ">X @grandtransferHQ</a> ·
+  <a href="https://www.npmjs.com/package/grand-transfer-agent">npm</a>
 </p>
 
 ![Landing page](docs/images/landing.jpg)

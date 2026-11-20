@@ -3307,3 +3307,42 @@ main#top > .hero:first-child .hero-body {
     display: none;
   }
 }
+
+/* ---------- npm install snippet ---------- */
+.npm-install {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  padding: 8px 8px 8px 14px;
+  border-radius: 14px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  max-width: 100%;
+}
+.npm-install code {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 13.5px;
+  color: var(--lime);
+  white-space: nowrap;
+  overflow-x: auto;
+}
+.npm-prompt {
+  color: var(--pink);
+  margin-right: 4px;
+}
+.npm-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--pink);
+  text-decoration: none;
+}
+.npm-link:hover {
+  color: var(--cream);
+}

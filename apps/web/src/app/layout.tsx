@@ -15,6 +15,7 @@ export const metadata: Metadata = {
   description:
     "Your AI wallet agent for Robinhood Chain. You call the shots. The agent makes the run.",
   robots: { index: false, follow: false },
+  twitter: { card: "summary_large_image", site: "@grandtransferHQ", creator: "@grandtransferHQ" },
 };
 
 export const viewport: Viewport = {

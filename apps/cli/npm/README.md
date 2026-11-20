@@ -4,7 +4,7 @@
 
 `gta` is an AI wallet agent for **Robinhood Chain** in your terminal. Type what you want in plain words, for example "send 0.01 ETH to robinhood". The agent finds the address, checks your limits and shows you the plan. Nothing moves until you type `yes`.
 
-Web app: [grandtransfer.agency](https://grandtransfer.agency) · Source: [GitHub](https://github.com/GTA-agency/grandtransfer_agency)
+Web app: [grandtransfer.agency](https://grandtransfer.agency) · Source: [GitHub](https://github.com/GTA-agency/grandtransfer_agency) · X: [@grandtransferHQ](https://x.com/grandtransferHQ)
 
 > Transfers on Robinhood Chain (mainnet, chain ID 4663) are real and final. Start with small amounts.
 

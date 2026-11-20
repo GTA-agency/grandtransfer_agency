@@ -2,6 +2,7 @@
 import { useState } from "react";
 import type { SessionDto } from "@/shared/types";
 import { ConnectModal, WalletChoices } from "./ConnectModal";
+import { CopyButton } from "./CopyButton";
 import { DemoChat } from "./DemoChat";
 import { Footer } from "./Footer";
 import { LogoSpinner } from "./LogoSpinner";
@@ -227,6 +228,19 @@ export function Landing({ info, onSignedIn }: { info: SessionDto; onSignedIn: ()
                   Use the web app with your browser wallet, or stay in the terminal with the{" "}
                   <span className="mono">gta</span> command. Same agent, same safety checks.
                 </p>
+                <div className="npm-install">
+                  <code>
+                    <span className="npm-prompt">$</span> npm i -g grand-transfer-agent
+                  </code>
+                  <CopyButton text="npm i -g grand-transfer-agent" label="Copy install command" />
+                </div>
+                <a
+                  className="npm-link"
+                  href="https://www.npmjs.com/package/grand-transfer-agent"
+                  rel="noreferrer noopener"
+                >
+                  View on npm <IconArrow size={14} />
+                </a>
               </div>
             </article>
           </div>

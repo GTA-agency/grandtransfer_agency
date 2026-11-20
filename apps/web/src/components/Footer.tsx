@@ -66,8 +66,14 @@ export function Footer({ variant = "landing", onConnect, onStartRun, onDisconnec
         </div>
         <div className="footer-col">
           <h2>Follow</h2>
+          <a href="https://x.com/grandtransferHQ" rel="noreferrer noopener">
+            X @grandtransferHQ
+          </a>
           <a href={REPO} rel="noreferrer noopener">
             GitHub
+          </a>
+          <a href="https://www.npmjs.com/package/grand-transfer-agent" rel="noreferrer noopener">
+            npm
           </a>
         </div>
         <div className="footer-col">
