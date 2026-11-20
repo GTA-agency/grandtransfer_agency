@@ -5,3 +5,5 @@ data
 pnpm-lock.yaml
 assets
 *.mov
+
+apps/cli/npm-dist/

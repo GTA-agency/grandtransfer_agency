@@ -10,12 +10,20 @@ export default tseslint.config(
       "**/.next/**",
       "**/.open-next/**",
       "**/.wrangler/**",
+      "**/npm-dist/**",
       "data/**",
     ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   prettier,
+  {
+    // Node build scripts
+    files: ["**/scripts/**/*.mjs"],
+    languageOptions: {
+      globals: { process: "readonly", console: "readonly", URL: "readonly" },
+    },
+  },
   {
     rules: {
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
