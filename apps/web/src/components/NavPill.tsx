@@ -50,7 +50,11 @@ export function NavPill({ links, actions, homeHref = "#top", tokenActive = false
           <a
             className="navpill-brand"
             href={homeHref}
-            aria-label={homeHref === "#top" ? "Grand Transfer Agent, back to top" : "Grand Transfer Agent, home"}
+            aria-label={
+              homeHref === "#top"
+                ? "Grand Transfer Agent, back to top"
+                : "Grand Transfer Agent, home"
+            }
           >
             <img className="brand-mark" src="/gta-mark-v2.png" alt="" width={409} height={176} />
             <img
