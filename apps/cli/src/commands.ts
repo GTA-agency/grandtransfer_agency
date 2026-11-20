@@ -582,12 +582,11 @@ export function help(out: Out): void {
   out.line(banner());
   out.line();
   const cmds: [string, string][] = [
-    ["setup", "save your OpenRouter API key (for chat)"],
     ["init", "create or import your wallet"],
     ["address", "show your address"],
     ["balance", "ETH balance and limits"],
     ["send <amount> <to>", "send ETH (contact name or address), with confirmation"],
-    ["chat", "talk to the agent"],
+    ["chat", "talk to the agent (free, no API key needed)"],
     ["contacts [add|remove|rename]", "your crew"],
     ["sync [--from-block N]", "pick up incoming ETH"],
     ["books [today|week|month|year|all]", "recap"],
@@ -596,7 +595,12 @@ export function help(out: Out): void {
     ["note <hash> <text>", "add a note"],
     ["categories [add|remove <name>]", "manage categories"],
     ["export [file.csv] [period]", "CSV export"],
-    ["usage", "OpenRouter spending"],
+    ["usage", "AI cost so far (with your own key)"],
+    ["setup", "optional: use your own OpenRouter key (no daily limit)"],
   ];
   for (const l of rows(cmds.map(([k, v]) => [c.pink(`gta ${k}`), v]))) out.line(`  ${l}`);
+  out.line();
+  out.line(
+    `  New here? Run ${c.pink("gta init")} to set up your wallet, then ${c.pink("gta chat")}.`,
+  );
 }

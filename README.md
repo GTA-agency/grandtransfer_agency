@@ -41,7 +41,7 @@ An AI wallet agent for **Robinhood Chain** (mainnet, chain ID 4663). You type wh
 ## Requirements
 
 - Node.js 26 and pnpm 12
-- An [OpenRouter](https://openrouter.ai/keys) API key with a few dollars of credit. One chat message usually costs about $0.01.
+- To run your own copy of the web app: an [OpenRouter](https://openrouter.ai/keys) API key with a few dollars of credit. One chat message usually costs about $0.01. (The npm CLI doesn't need one.)
 
 ## Setup
 
@@ -68,10 +68,12 @@ chmod 600 .env
 Install it from npm (Node.js 22.13+), no checkout needed:
 
 ```bash
-npm install -g grand-transfer-agent
-gta setup     # your own OpenRouter API key, saved to ~/.grand-transfer-agent/.env
+npm i -g grand-transfer-agent && gta   # installs and opens the menu
 gta init      # create or import your wallet
+gta chat      # talk to the agent: no API key needed
 ```
+
+`gta chat` uses the free hosted agent at grandtransfer.agency (it signs in with your wallet; daily message limit per wallet). For no limit, `gta setup` saves your own OpenRouter key to `~/.grand-transfer-agent/.env`.
 
 From a checkout of this repo, run the same commands with `pnpm gta …`:
 

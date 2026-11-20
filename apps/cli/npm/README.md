@@ -13,12 +13,19 @@ Web app: [grandtransfer.agency](https://grandtransfer.agency) · Source: [GitHub
 Requires **Node.js 22.13 or newer**.
 
 ```bash
-npm install -g grand-transfer-agent
-gta setup      # your own OpenRouter API key, for the chat agent
-gta init       # create a wallet, or import a recovery phrase or private key
+npm i -g grand-transfer-agent && gta
 ```
 
-`gta setup` saves your [OpenRouter](https://openrouter.ai/keys) key to `~/.grand-transfer-agent/.env`, readable only by you. Everything except `gta chat` works without a key.
+That installs the `gta` command and opens its menu. Then:
+
+```bash
+gta init       # create a wallet, or import a recovery phrase or private key
+gta chat       # talk to the agent
+```
+
+**No API key needed.** `gta chat` uses the free hosted agent at [grandtransfer.agency](https://grandtransfer.agency): it signs in with your wallet (a free message, never a transaction) and has a daily message limit per wallet. Your keys and password never leave your machine.
+
+Want no daily limit? Run `gta setup` to use your own [OpenRouter](https://openrouter.ai/keys) key instead. It is saved to `~/.grand-transfer-agent/.env`, readable only by you.
 
 ## Commands
 
@@ -34,7 +41,8 @@ gta history 20                 # latest transactions
 gta tag <hash> Food            # categorize
 gta note <hash> "rent split"   # add a note
 gta export books.csv month     # CSV
-gta usage                      # what the AI has cost so far
+gta usage                      # AI cost so far (with your own key)
+gta setup                      # optional: your own OpenRouter key
 gta --version
 ```
 
@@ -52,7 +60,7 @@ All settings can go in `~/.grand-transfer-agent/.env` or the environment:
 
 | Variable                       | Default                                    |
 | ------------------------------ | ------------------------------------------ |
-| `OPENROUTER_API_KEY`           | none (set by `gta setup`)                  |
+| `OPENROUTER_API_KEY`           | none: chat uses the hosted agent           |
 | `OPENROUTER_MODEL`             | `anthropic/claude-sonnet-5.5`              |
 | `RPC_URL`                      | public Robinhood Chain RPCs, with fallback |
 | `ARCHIVE_RPC_URL`              | `https://robinhood.drpc.org`               |

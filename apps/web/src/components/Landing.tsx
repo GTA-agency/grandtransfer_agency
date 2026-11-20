@@ -230,9 +230,13 @@ export function Landing({ info, onSignedIn }: { info: SessionDto; onSignedIn: ()
                 </p>
                 <div className="npm-install">
                   <code>
-                    <span className="npm-prompt">$</span> npm i -g grand-transfer-agent
+                    <span className="npm-prompt">$</span> npm i -g grand-transfer-agent &amp;&amp;
+                    gta
                   </code>
-                  <CopyButton text="npm i -g grand-transfer-agent" label="Copy install command" />
+                  <CopyButton
+                    text="npm i -g grand-transfer-agent && gta"
+                    label="Copy install command"
+                  />
                 </div>
                 <a
                   className="npm-link"
