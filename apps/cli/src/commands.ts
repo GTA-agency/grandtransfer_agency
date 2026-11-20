@@ -9,6 +9,7 @@ import {
   readUsageTotals,
   type PeriodPreset,
   formatUsd,
+  VaultError,
 } from "@gta/core";
 import type { AppContext } from "./context.ts";
 import type { Prompter } from "./prompt.ts";
@@ -248,13 +249,41 @@ export async function send({ ctx, prompt, out }: CommandEnv, args: string[]): Pr
 
 export async function chat({ ctx, prompt, out }: CommandEnv): Promise<void> {
   needWallet(ctx);
-  const agent = ctx.agent();
+  // Hosted agent: the first message signs in with this wallet (free, not a transaction).
+  const unlock = async () => {
+    out.line(
+      c.dim(
+        "Signing in to the hosted agent at grandtransfer.agency with your wallet (free message, not a transaction).",
+      ),
+    );
+    for (let i = 1; ; i++) {
+      const password = await prompt.askHidden("Wallet password: ");
+      try {
+        await ctx.vault.unlock(password);
+        return;
+      } catch (err) {
+        if (err instanceof VaultError && err.code === "WRONG_PASSWORD" && i < 3) {
+          out.line(c.gold("Wrong password, try again."));
+          continue;
+        }
+        throw err;
+      }
+    }
+  };
+  const agent = ctx.agent(unlock);
   out.line(banner());
   out.line(
     c.dim(
       `Talk to your agent. Try "what's my balance?" or "send 0.01 eth to robinhood". /exit to leave.`,
     ),
   );
+  if (ctx.hosted) {
+    out.line(
+      c.dim(
+        "Using the free hosted agent (daily message limit). Prefer your own OpenRouter key? Run `gta setup`.",
+      ),
+    );
+  }
   for (;;) {
     let text: string;
     try {

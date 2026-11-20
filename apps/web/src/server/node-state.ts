@@ -8,7 +8,7 @@ import { loadWebConfig } from "./webconfig";
  * Bump when ServerState's shape changes. Each route bundle has its own copy of this module, so
  * the shared instance on globalThis is matched by this tag, not by `instanceof`.
  */
-const STATE_VERSION = 5;
+const STATE_VERSION = 6;
 
 const g = globalThis as typeof globalThis & { __gtaState?: ServerState & { __v?: number } };
 

@@ -55,7 +55,8 @@ export async function setup(prompt: Prompter, out: Out): Promise<void> {
 
   out.line(banner());
   out.line();
-  out.line("The agent uses OpenRouter for its AI. Bring your own key:");
+  out.line("Optional: bring your own OpenRouter key for unlimited chat.");
+  out.line(c.dim("  Without one, `gta chat` uses the free hosted agent at grandtransfer.agency."));
   out.line(c.dim("  https://openrouter.ai/keys  (a few dollars of credit lasts a long time)"));
   out.line(c.dim(`  Saved to ${path}, readable only by you.`));
   out.line();
@@ -73,7 +74,7 @@ export async function setup(prompt: Prompter, out: Out): Promise<void> {
     }
     lines = setValue(lines, "OPENROUTER_API_KEY", key);
   } else {
-    out.line(c.dim("No key: everything except `gta chat` still works."));
+    out.line(c.dim("No key: `gta chat` uses the free hosted agent (daily limit)."));
   }
 
   const model = (await prompt.ask(`Model [${currentModel}]: `)).trim() || currentModel;

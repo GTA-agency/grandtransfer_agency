@@ -11,6 +11,8 @@ import {
   ContactError,
   EXPLORER_URL,
   LlmError,
+  TOOL_DEFINITIONS,
+  buildSystemPrompt,
   QuotaError,
   ROBINHOOD_CHAIN_ID,
   TransferError,
@@ -19,6 +21,8 @@ import {
   formatEth,
   isNetworkError,
   parseAddress,
+  type ChatMessage,
+  type ToolCall,
 } from "@gta/core";
 import type {
   ChatReplyDto,
@@ -250,6 +254,60 @@ on(
   },
   false,
 );
+
+/**
+ * Hosted agent for the CLI: one model call on the server's key, for a signed-in wallet.
+ * The server sets the system prompt, the tools and the model; the client only sends the
+ * conversation. A message counts toward the daily allowance when its final answer arrives.
+ */
+const LLM_MAX_MESSAGES = 60;
+const LLM_MAX_CHARS = 40_000;
+on("POST", /^\/api\/llm$/, async ({ s, session, body }) => {
+  const address = session!.address;
+  limit(s, `llm:${address.toLowerCase()}`, 40, 60_000);
+  s.quota.check(address);
+  const raw = (await body()).messages;
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length > LLM_MAX_MESSAGES) {
+    throw new HttpError(400, "BAD_INPUT", "messages must be a non-empty list.");
+  }
+  let chars = 0;
+  const messages: ChatMessage[] = [];
+  for (const m of raw as Record<string, unknown>[]) {
+    const content = typeof m.content === "string" ? m.content : null;
+    chars += content?.length ?? 0;
+    if (m.role === "user" && content !== null) messages.push({ role: "user", content });
+    else if (m.role === "tool" && content !== null && typeof m.tool_call_id === "string") {
+      messages.push({ role: "tool", tool_call_id: m.tool_call_id.slice(0, 100), content });
+    } else if (m.role === "assistant") {
+      const calls = Array.isArray(m.tool_calls)
+        ? (m.tool_calls as ToolCall[])
+            .filter((c) => c && typeof c.id === "string" && typeof c.function?.name === "string")
+            .map((c) => ({
+              id: c.id.slice(0, 100),
+              type: "function" as const,
+              function: {
+                name: c.function.name.slice(0, 64),
+                arguments: String(c.function.arguments ?? "").slice(0, 4000),
+              },
+            }))
+        : undefined;
+      messages.push({
+        role: "assistant",
+        content,
+        ...(calls?.length ? { tool_calls: calls } : {}),
+      });
+    } // system messages (and anything else) are dropped: the server sets its own
+  }
+  if (chars > LLM_MAX_CHARS)
+    throw new HttpError(413, "TOO_LONG", "That conversation is too long. Start a new chat.");
+  const reply = await s.hostedChat(
+    [{ role: "system", content: buildSystemPrompt(new Date()) }, ...messages],
+    TOOL_DEFINITIONS,
+  );
+  if (reply.message.tool_calls?.length) s.quota.addCost(address, reply.usage.costUsd);
+  else s.quota.record(address, reply.usage.costUsd);
+  return json(reply);
+});
 
 // overview & chat -------------------------------------------------------------------------------
 

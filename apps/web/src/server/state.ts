@@ -18,7 +18,10 @@ import {
   type ChainOps,
   type Config,
   type Database,
+  type ChatMessage,
   type LlmClient,
+  type LlmReply,
+  type ToolDefinition,
   type SyncReport,
   type UsageLog,
 } from "@gta/core";
@@ -106,6 +109,11 @@ export class ServerState {
       model: this.config.openRouterModel,
     });
     this.usageLog = deps.usageLog ?? { record: () => undefined };
+  }
+
+  /** One model call on the server's key, for the CLI's hosted agent (see /api/llm). */
+  hostedChat(messages: ChatMessage[], tools: ToolDefinition[]): Promise<LlmReply> {
+    return this.llm.chat(messages, tools);
   }
 
   /** Public mode keeps data per wallet; locally everything belongs to the one local owner. */

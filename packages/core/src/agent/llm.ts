@@ -83,10 +83,7 @@ export class OpenRouterClient implements LlmClient {
 
   async chat(messages: ChatMessage[], tools: ToolDefinition[]): Promise<LlmReply> {
     if (!this.opts.apiKey) {
-      throw new LlmError(
-        "NO_API_KEY",
-        "No OpenRouter API key yet. Run `gta setup` (or set OPENROUTER_API_KEY).",
-      );
+      throw new LlmError("NO_API_KEY", "No OpenRouter API key set (OPENROUTER_API_KEY).");
     }
     const body = JSON.stringify({
       model: this.opts.model,

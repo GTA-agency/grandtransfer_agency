@@ -67,6 +67,16 @@ export class AiQuota {
       .run(this.day(), wallet, costUsd ?? 0);
   }
 
+  /** Add cost without counting a message (the in-between steps of one agent answer). */
+  addCost(wallet: string, costUsd: number | undefined): void {
+    this.db
+      .prepare(
+        `INSERT INTO ai_usage (day, wallet, messages, cost_usd) VALUES (?, ?, 0, ?)
+         ON CONFLICT(day, wallet) DO UPDATE SET cost_usd = cost_usd + excluded.cost_usd`,
+      )
+      .run(this.day(), wallet, costUsd ?? 0);
+  }
+
   usedToday(wallet: string): { messages: number; limit: number } {
     const row = this.db
       .prepare("SELECT messages FROM ai_usage WHERE day = ? AND wallet = ?")
