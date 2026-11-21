@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach } from "vitest";
-import type { Address, Hash } from "viem";
+import type { Address, Hash, Hex } from "viem";
 import type { ChainOps } from "../src/index.ts";
 
 /** Cheap scrypt so tests run fast. Never use outside tests. */
@@ -27,10 +27,13 @@ afterEach(() => {
 export interface FakeChain extends ChainOps {
   chainId: number;
   balances: Map<string, bigint>;
-  sent: { from: Address; to: Address; value: bigint; gas: bigint }[];
+  sent: { from: Address; to: Address; value: bigint; gas: bigint; data?: Hex }[];
   receiptStatus: "success" | "reverted" | "timeout";
   /** Transactions the "network" knows, by hash (for getTransaction). */
-  known: Map<string, { from: Address; to: Address | null; value: bigint; chainId: number }>;
+  known: Map<
+    string,
+    { from: Address; to: Address | null; value: bigint; chainId: number; input?: Hex }
+  >;
 }
 
 export function fakeChain(overrides: Partial<FakeChain> = {}): FakeChain {
@@ -45,7 +48,13 @@ export function fakeChain(overrides: Partial<FakeChain> = {}): FakeChain {
     estimateGas: async () => 21_000n,
     estimateFees: async () => ({ maxFeePerGas: 1_000_000_000n, maxPriorityFeePerGas: 1_000_000n }),
     sendTransaction: async (account, tx) => {
-      chain.sent.push({ from: account.address, to: tx.to, value: tx.value, gas: tx.gas });
+      chain.sent.push({
+        from: account.address,
+        to: tx.to,
+        value: tx.value,
+        gas: tx.gas,
+        ...(tx.data ? { data: tx.data } : {}),
+      });
       return `0x${chain.sent.length.toString(16).padStart(64, "0")}` as Hash;
     },
     getTransaction: async (hash) => chain.known.get(hash.toLowerCase()),

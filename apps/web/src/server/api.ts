@@ -10,6 +10,8 @@ import {
   ConfigError,
   ContactError,
   EXPLORER_URL,
+  GTA_TOKEN,
+  LEGACY_TOOL_DEFINITIONS,
   LlmError,
   TOOL_DEFINITIONS,
   buildSystemPrompt,
@@ -19,8 +21,10 @@ import {
   VaultError,
   explorerAddressUrl,
   formatEth,
+  formatTokenAmount,
   isNetworkError,
   parseAddress,
+  planAmount,
   type ChatMessage,
   type ToolCall,
 } from "@gta/core";
@@ -266,7 +270,10 @@ on("POST", /^\/api\/llm$/, async ({ s, session, body }) => {
   const address = session!.address;
   limit(s, `llm:${address.toLowerCase()}`, 40, 60_000);
   s.quota.check(address);
-  const raw = (await body()).messages;
+  const b = await body();
+  // CLI versions before the token update don't send this and can't run the newer tools.
+  const current = b.toolset === 2;
+  const raw = b.messages;
   if (!Array.isArray(raw) || raw.length === 0 || raw.length > LLM_MAX_MESSAGES) {
     throw new HttpError(400, "BAD_INPUT", "messages must be a non-empty list.");
   }
@@ -301,8 +308,8 @@ on("POST", /^\/api\/llm$/, async ({ s, session, body }) => {
   if (chars > LLM_MAX_CHARS)
     throw new HttpError(413, "TOO_LONG", "That conversation is too long. Start a new chat.");
   const reply = await s.hostedChat(
-    [{ role: "system", content: buildSystemPrompt(new Date()) }, ...messages],
-    TOOL_DEFINITIONS,
+    [{ role: "system", content: buildSystemPrompt(new Date(), { tokens: current }) }, ...messages],
+    current ? TOOL_DEFINITIONS : LEGACY_TOOL_DEFINITIONS,
   );
   if (reply.message.tool_calls?.length) s.quota.addCost(address, reply.usage.costUsd);
   else s.quota.record(address, reply.usage.costUsd);
@@ -320,6 +327,13 @@ on("GET", /^\/api\/overview$/, async ({ s, session, wallet }) => {
   } catch {
     balanceError = "Couldn't reach Robinhood Chain. Showing the books only.";
   }
+  let gtaBalance: string | null = null;
+  try {
+    const units = await s.tokens.balanceOf(GTA_TOKEN.address, address);
+    gtaBalance = formatTokenAmount(units, GTA_TOKEN.decimals);
+  } catch {
+    /* the ETH balance is what matters here; the token line just stays hidden */
+  }
   const sent = s.ledger.sumOutgoingSince(address, Date.now() - DAY_MS);
   const ai = s.quota.usedToday(address);
   const body: OverviewDto = {
@@ -336,6 +350,7 @@ on("GET", /^\/api\/overview$/, async ({ s, session, wallet }) => {
     recent: s.ledger.recent(address, 6).map(entryDto),
     lastSyncedBlock: wallet!.sync.getCheckpoint(address)?.lastBlock ?? null,
     aiMessages: ai.limit > 0 ? { used: ai.messages, limit: ai.limit } : null,
+    gtaBalance,
   };
   return json(body);
 });
@@ -350,6 +365,7 @@ on("POST", /^\/api\/chat$/, async ({ s, session, body }) => {
     message: r.message,
     draft: r.draft ? draftDto(r.draft) : null,
     contactProposal: r.contactProposal ? proposalDto(r.contactProposal) : null,
+    paymentLink: r.paymentLink ?? null,
     costUsd: r.usage.costUsd ?? null,
   };
   return json(reply);
@@ -372,10 +388,14 @@ on("POST", /^\/api\/chat\/note$/, async ({ s, session, body }) => {
 on("POST", /^\/api\/transfers\/prepare$/, async ({ s, session, wallet, body }) => {
   limit(s, `prepare:${session!.address.toLowerCase()}`, 30, 60_000);
   const b = await body();
-  const draft = await wallet!.transfers.prepare({
-    to: str(b, "to", { max: 64 }),
-    amountEth: str(b, "amountEth", { max: 40 }),
-  });
+  const to = str(b, "to", { max: 64 });
+  const amount = str(b, "amountEth", { max: 40 });
+  const asset = str(b, "asset", { max: 8, optional: true }) || "eth";
+  if (asset !== "eth" && asset !== "gta") throw new HttpError(400, "BAD_INPUT", "Unknown asset.");
+  const draft =
+    asset === "gta"
+      ? await wallet!.transfers.prepareToken({ to, amount, token: "GTA" })
+      : await wallet!.transfers.prepare({ to, amountEth: amount });
   return json({ draft: draftDto(draft) });
 });
 
@@ -392,6 +412,7 @@ on("POST", /^\/api\/transfers\/authorize$/, async ({ wallet, body }) => {
     from: tx.from,
     to: tx.to,
     value: tx.value.toString(),
+    ...(tx.data ? { data: tx.data } : {}),
     gas: tx.gas.toString(),
     maxFeePerGas: tx.maxFeePerGas.toString(),
     maxPriorityFeePerGas: tx.maxPriorityFeePerGas.toString(),
@@ -410,7 +431,7 @@ on("POST", /^\/api\/transfers\/record$/, async ({ s, session, wallet, body }) =>
   );
   if (draft) {
     s.agent(session!).noteOutcome(
-      `Transfer ${result.status}: ${formatEth(draft.amountWei)} ETH to ${draft.contactName ?? draft.to}, tx ${result.hash}.`,
+      `Transfer ${result.status}: ${planAmount(draft)} to ${draft.contactName ?? draft.to}, tx ${result.hash}.`,
     );
   }
   return json({ result: resultDto(result) });

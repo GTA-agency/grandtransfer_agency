@@ -1,6 +1,6 @@
 "use client";
 import { useWalletName } from "@/lib/wallet-name";
-import { shortAddr, trimEth } from "@/lib/format";
+import { fmtToken, shortAddr, trimEth } from "@/lib/format";
 import { usdLabel, useEthUsd } from "@/lib/usd";
 import type { OverviewDto } from "@/shared/types";
 import { CopyButton } from "./CopyButton";
@@ -36,6 +36,9 @@ export function Hero({ overview, onStart }: { overview: OverviewDto | null; onSt
             <small>ETH</small>
           </div>
           {balanceUsd && <div className="balance-usd">{balanceUsd}</div>}
+          {o?.gtaBalance && o.gtaBalance !== "0" && (
+            <div className="balance-token">{fmtToken(o.gtaBalance)} GTA</div>
+          )}
           {o?.balanceError && (
             <p className="form-error" style={{ marginTop: 8 }}>
               {o.balanceError}

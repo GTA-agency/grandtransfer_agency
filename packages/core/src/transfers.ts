@@ -1,11 +1,19 @@
 import { randomBytes } from "node:crypto";
-import type { Address, Hash } from "viem";
-import { AmountError, parseEthAmount } from "./amount.ts";
+import { zeroAddress, type Address, type Hash, type Hex } from "viem";
+import { AmountError, formatEth, parseEthAmount } from "./amount.ts";
 import { ROBINHOOD_CHAIN_ID, explorerTxUrl } from "./chain.ts";
 import type { ChainOps } from "./chain-ops.ts";
 import { ContactError, type AddressBook, type Contact } from "./contacts.ts";
 import type { LedgerStore } from "./ledger-store.ts";
 import { isNetworkError } from "./network.ts";
+import {
+  encodeTokenTransfer,
+  formatTokenAmount,
+  parseTokenAmount,
+  resolveToken,
+  type TokenInfo,
+  type TokenOps,
+} from "./tokens.ts";
 import { VaultError, type WalletVault } from "./vault.ts";
 
 export type TransferErrorCode =
@@ -29,7 +37,11 @@ export type TransferErrorCode =
   | "TX_NOT_FOUND"
   | "TX_MISMATCH"
   | "NETWORK_UNAVAILABLE"
-  | "SEND_FAILED";
+  | "SEND_FAILED"
+  | "UNSUPPORTED_TOKEN"
+  | "INSUFFICIENT_TOKEN_BALANCE"
+  | "OVER_TOKEN_TX_LIMIT"
+  | "OVER_TOKEN_DAILY_LIMIT";
 
 export class TransferError extends Error {
   constructor(
@@ -60,6 +72,17 @@ export interface TransferDraft {
   dailySentWei: bigint;
   createdAt: number;
   expiresAt: number;
+  /** Set when this plan moves a token: `to` stays the person, amountWei is 0, gas is in ETH. */
+  token?: DraftToken;
+}
+
+export interface DraftToken {
+  address: Address;
+  symbol: string;
+  decimals: number;
+  amountUnits: bigint;
+  /** The exact `transfer(to, amount)` call the wallet signs. */
+  data: Hex;
 }
 
 export interface Confirmation {
@@ -80,8 +103,10 @@ export interface ExternalTxRequest {
   draftId: string;
   chainId: number;
   from: Address;
+  /** The recipient for ETH; the token contract for a token send. */
   to: Address;
   value: bigint;
+  data?: Hex;
   gas: bigint;
   maxFeePerGas: bigint;
   maxPriorityFeePerGas: bigint;
@@ -107,6 +132,8 @@ export interface TransferServiceDeps {
   ledger: LedgerStore;
   chain: ChainOps;
   limits: TransferLimits;
+  /** Token reads. Without them, token plans are refused. */
+  tokens?: TokenOps;
   now?: () => number;
   draftTtlMs?: number;
   receiptTimeoutMs?: number;
@@ -119,6 +146,13 @@ type StoredDraft = TransferDraft & {
   /** Set when an external wallet was cleared to sign this plan; recordExternal() needs it. */
   external?: "authorized" | "recorded";
 };
+
+/** "0.01 ETH" or "1000 GTA": what a plan moves, for messages. */
+export function planAmount(d: TransferDraft): string {
+  return d.token
+    ? `${formatTokenAmount(d.token.amountUnits, d.token.decimals)} ${d.token.symbol}`
+    : `${formatEth(d.amountWei)} ETH`;
+}
 
 /** Stars for the confirmation screen. Purely informational; limits are enforced separately. */
 export function wantedLevel(amountWei: bigint, maxTxWei: bigint, isNewRecipient: boolean): number {
@@ -145,7 +179,7 @@ export class TransferService {
    */
   private readonly reservations = new Map<
     string,
-    { from: Address; amountWei: bigint; until: number }
+    { from: Address; amountWei: bigint; until: number; token?: Address; units?: bigint }
   >();
   /** Serializes the "re-check limits, then reserve" step. */
   private gate: Promise<unknown> = Promise.resolve();
@@ -226,6 +260,105 @@ export class TransferService {
     return draft;
   }
 
+  /** Same two-step safety as prepare(), for a supported token. Gas is paid in ETH. */
+  async prepareToken(input: { to: string; amount: string; token: string }): Promise<TransferDraft> {
+    this.pruneDrafts();
+    const tokens = this.deps.tokens;
+    const info = tokens ? resolveToken(input.token) : undefined;
+    if (!tokens || !info) {
+      throw new TransferError("UNSUPPORTED_TOKEN", "Only $GTA can be sent for now.");
+    }
+    const from = this.walletAddress();
+    let amountUnits: bigint;
+    try {
+      amountUnits = parseTokenAmount(input.amount, info.decimals);
+    } catch (err) {
+      if (err instanceof AmountError) throw new TransferError("INVALID_AMOUNT", err.message);
+      throw err;
+    }
+    const { address: to, contact } = this.resolveRecipient(input.to);
+    if (to.toLowerCase() === from.toLowerCase()) {
+      throw new TransferError("SELF_TRANSFER", "That's your own wallet address.");
+    }
+    // Tokens sent to these addresses are gone for good.
+    if (to.toLowerCase() === info.address.toLowerCase() || to === zeroAddress) {
+      throw new TransferError(
+        "INVALID_ADDRESS",
+        "That address can't receive tokens: anything sent there would be lost.",
+      );
+    }
+
+    await this.assertChain();
+    this.checkTokenLimits(from, info, amountUnits);
+    const [tokenBalance, ethBalance] = await this.net(() =>
+      Promise.all([tokens.balanceOf(info.address, from), this.deps.chain.getBalance(from)]),
+    );
+    if (tokenBalance < amountUnits) {
+      throw new TransferError(
+        "INSUFFICIENT_TOKEN_BALANCE",
+        `Not enough ${info.symbol}. This wallet has ${formatTokenAmount(tokenBalance, info.decimals)}.`,
+      );
+    }
+    const data = encodeTokenTransfer(to, amountUnits);
+    let gasEstimate: bigint;
+    let fees: { maxFeePerGas: bigint; maxPriorityFeePerGas: bigint };
+    try {
+      [gasEstimate, fees] = await Promise.all([
+        this.deps.chain.estimateGas({ from, to: info.address, value: 0n, data }),
+        this.deps.chain.estimateFees(),
+      ]);
+    } catch {
+      throw new TransferError(
+        "GAS_ESTIMATE_FAILED",
+        "Couldn't estimate gas for this transfer (network problem or the token refused it). Try again shortly.",
+      );
+    }
+    const gasLimit = (gasEstimate * 130n) / 100n; // token calls vary more than a plain transfer
+    const estimatedFeeWei = gasLimit * fees.maxFeePerGas;
+    if (ethBalance < estimatedFeeWei) {
+      throw new TransferError("INSUFFICIENT_BALANCE", "Not enough ETH to pay the gas.", {
+        balanceWei: ethBalance,
+        neededWei: estimatedFeeWei,
+      });
+    }
+
+    const isNewRecipient = !contact && !this.deps.ledger.hasSentTo(from, to);
+    const createdAt = this.now();
+    const draft: TransferDraft = {
+      id: randomBytes(16).toString("hex"),
+      from,
+      to,
+      contactName: contact?.name,
+      amountWei: 0n,
+      gasLimit,
+      maxFeePerGas: fees.maxFeePerGas,
+      maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
+      estimatedFeeWei,
+      totalWei: estimatedFeeWei,
+      wantedLevel: wantedLevel(amountUnits, info.maxTxUnits, isNewRecipient),
+      isNewRecipient,
+      dailySentWei: 0n,
+      createdAt,
+      expiresAt: createdAt + this.draftTtlMs,
+      token: {
+        address: info.address,
+        symbol: info.symbol,
+        decimals: info.decimals,
+        amountUnits,
+        data,
+      },
+    };
+    this.drafts.set(draft.id, { ...draft, used: false });
+    return draft;
+  }
+
+  /** What actually goes on chain for a plan. */
+  private txOf(d: TransferDraft): { to: Address; value: bigint; data?: Hex } {
+    return d.token
+      ? { to: d.token.address, value: 0n, data: d.token.data }
+      : { to: d.to, value: d.amountWei };
+  }
+
   getDraft(id: string): TransferDraft | undefined {
     const d = this.drafts.get(id);
     if (!d) return undefined;
@@ -262,8 +395,7 @@ export class TransferService {
     let hash: Hash;
     try {
       hash = await this.deps.chain.sendTransaction(account, {
-        to: draft.to,
-        value: draft.amountWei,
+        ...this.txOf(draft),
         gas: draft.gasLimit,
         maxFeePerGas: draft.maxFeePerGas,
         maxPriorityFeePerGas: draft.maxPriorityFeePerGas,
@@ -292,8 +424,7 @@ export class TransferService {
       draftId: draft.id,
       chainId: ROBINHOOD_CHAIN_ID,
       from: draft.from,
-      to: draft.to,
-      value: draft.amountWei,
+      ...this.txOf(draft),
       gas: draft.gasLimit,
       maxFeePerGas: draft.maxFeePerGas,
       maxPriorityFeePerGas: draft.maxPriorityFeePerGas,
@@ -323,10 +454,12 @@ export class TransferService {
       );
     }
     const same = (a: string | null, b: string) => a !== null && a.toLowerCase() === b.toLowerCase();
+    const want = this.txOf(draft);
     if (
       !same(tx.from, draft.from) ||
-      !same(tx.to, draft.to) ||
-      tx.value !== draft.amountWei ||
+      !same(tx.to, want.to) ||
+      tx.value !== want.value ||
+      (want.data !== undefined && !same(tx.input ?? null, want.data)) ||
       tx.chainId !== ROBINHOOD_CHAIN_ID
     ) {
       throw new TransferError(
@@ -365,7 +498,12 @@ export class TransferService {
   private recheckAndReserve(draft: TransferDraft, until: number): Promise<void> {
     const run = this.gate.then(async () => {
       await this.recheck(draft);
-      this.reservations.set(draft.id, { from: draft.from, amountWei: draft.amountWei, until });
+      this.reservations.set(draft.id, {
+        from: draft.from,
+        amountWei: draft.amountWei,
+        until,
+        ...(draft.token ? { token: draft.token.address, units: draft.token.amountUnits } : {}),
+      });
     });
     this.gate = run.catch(() => undefined);
     return run;
@@ -373,7 +511,22 @@ export class TransferService {
 
   private async recheck(draft: TransferDraft): Promise<void> {
     await this.assertChain();
-    this.checkLimits(draft.from, draft.amountWei);
+    if (draft.token) {
+      const { address, amountUnits, symbol } = draft.token;
+      const info = resolveToken(address);
+      const tokens = this.deps.tokens;
+      if (!info || !tokens) throw new TransferError("UNSUPPORTED_TOKEN", "Only $GTA can be sent.");
+      this.checkTokenLimits(draft.from, info, amountUnits);
+      const held = await this.net(() => tokens.balanceOf(address, draft.from));
+      if (held < amountUnits) {
+        throw new TransferError(
+          "INSUFFICIENT_TOKEN_BALANCE",
+          `Not enough ${symbol} any more for this plan.`,
+        );
+      }
+    } else {
+      this.checkLimits(draft.from, draft.amountWei);
+    }
     const balance = await this.net(() => this.deps.chain.getBalance(draft.from));
     if (balance < draft.totalWei) {
       throw new TransferError(
@@ -395,6 +548,16 @@ export class TransferService {
       contactName: draft.contactName,
       amountWei: draft.amountWei,
       timestamp: this.now(),
+      ...(draft.token
+        ? {
+            token: {
+              address: draft.token.address,
+              symbol: draft.token.symbol,
+              decimals: draft.token.decimals,
+              amountUnits: draft.token.amountUnits,
+            },
+          }
+        : {}),
     });
     // From here the ledger counts it toward the limit.
     this.reservations.delete(draft.id);
@@ -519,6 +682,35 @@ export class TransferService {
       });
     }
     return dailySentWei;
+  }
+
+  /** The token's own limits, counting sends in the ledger and plans being signed right now. */
+  private checkTokenLimits(from: Address, info: TokenInfo, units: bigint): void {
+    const show = (v: bigint) => `${formatTokenAmount(v, info.decimals)} ${info.symbol}`;
+    if (units > info.maxTxUnits) {
+      throw new TransferError(
+        "OVER_TOKEN_TX_LIMIT",
+        `That's above the limit of ${show(info.maxTxUnits)} per send.`,
+      );
+    }
+    const t = this.now();
+    let reserved = 0n;
+    for (const [id, r] of this.reservations) {
+      if (t > r.until) this.reservations.delete(id);
+      else if (
+        r.from.toLowerCase() === from.toLowerCase() &&
+        r.token?.toLowerCase() === info.address.toLowerCase()
+      ) {
+        reserved += r.units ?? 0n;
+      }
+    }
+    const sent = this.deps.ledger.sumTokenOutgoingSince(from, info.address, t - DAY_MS) + reserved;
+    if (sent + units > info.maxDailyUnits) {
+      throw new TransferError(
+        "OVER_TOKEN_DAILY_LIMIT",
+        `That would go over the 24-hour limit of ${show(info.maxDailyUnits)}.`,
+      );
+    }
   }
 
   private pruneDrafts(): void {

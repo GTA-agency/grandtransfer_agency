@@ -23,6 +23,8 @@ export interface OverviewDto {
   lastSyncedBlock: number | null;
   /** Today's agent messages when a daily quota applies; null when unlimited. */
   aiMessages: { used: number; limit: number } | null;
+  /** The wallet's $GTA, exact; null when it couldn't be read. */
+  gtaBalance: string | null;
 }
 
 export interface DraftDto {
@@ -38,6 +40,8 @@ export interface DraftDto {
   dailySentEth: string;
   expiresAt: number;
   explorerAddressUrl: string;
+  /** Set when this plan moves a token instead of ETH. */
+  token: { symbol: string; address: Hex; amount: string } | null;
 }
 
 export interface ResultDto {
@@ -57,7 +61,14 @@ export interface ChatReplyDto {
   message: string;
   draft: DraftDto | null;
   contactProposal: ProposalDto | null;
+  paymentLink: PaymentLinkDto | null;
   costUsd: number | null;
+}
+
+export interface PaymentLinkDto {
+  url: string;
+  amount: string;
+  asset: "eth" | "gta";
 }
 
 export interface ContactDto {
@@ -80,6 +91,8 @@ export interface EntryDto {
   note: string | null;
   source: "agent" | "sync" | "internal";
   explorerUrl: string;
+  /** Set when this run moved a token (amountEth is then 0). */
+  token: { symbol: string; amount: string } | null;
 }
 
 export type PeriodPreset = "today" | "week" | "month" | "year" | "all";
@@ -132,6 +145,8 @@ export interface ExternalTxDto {
   from: Hex;
   to: Hex;
   value: string;
+  /** Contract call for a token send. */
+  data?: Hex;
   gas: string;
   maxFeePerGas: string;
   maxPriorityFeePerGas: string;

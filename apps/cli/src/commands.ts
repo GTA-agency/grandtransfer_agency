@@ -6,6 +6,8 @@ import {
   explorerAddressUrl,
   explorerTxUrl,
   formatEth,
+  formatTokenAmount,
+  planAmount,
   readUsageTotals,
   type PeriodPreset,
   formatUsd,
@@ -337,6 +339,8 @@ export async function chat(
       }
     }
 
+    if (res.paymentLink) out.line(c.mint(`  ${res.paymentLink.url}`));
+
     if (res.draft) {
       out.line();
       const outcome = await confirmAndSend(res.draft, {
@@ -347,7 +351,7 @@ export async function chat(
         ethUsd: await ctx.ethUsd(),
       });
       const d = res.draft;
-      const what = `${formatEth(d.amountWei)} ETH to ${d.contactName ?? d.to}`;
+      const what = `${planAmount(d)} to ${d.contactName ?? d.to}`;
       if (outcome.kind === "sent")
         agent.noteOutcome(
           `User confirmed: sent ${what}, tx ${outcome.result.hash} (${outcome.result.status}).`,
@@ -491,7 +495,7 @@ export async function history({ ctx, out }: CommandEnv, args: string[]): Promise
       .filter(Boolean)
       .join(" ");
     out.line(
-      `${c.dim(localDateTime(e.timestamp))}  ${sign}${c.cream(formatEth(e.amountWei).padEnd(20))} ${who}${status} ${extra}`,
+      `${c.dim(localDateTime(e.timestamp))}  ${sign}${c.cream((e.token ? `${formatTokenAmount(e.token.amountUnits, e.token.decimals)} ${e.token.symbol}` : formatEth(e.amountWei)).padEnd(20))} ${who}${status} ${extra}`,
     );
     out.line(
       c.dim(

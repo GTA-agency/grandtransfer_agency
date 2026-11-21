@@ -41,3 +41,11 @@ export function explorerTxUrl(hash: string): string {
 export function explorerAddressUrl(address: string): string {
   return `${EXPLORER_URL}/address/${address}`;
 }
+
+/** The official $GTA token. Verified on chain 4663: name, symbol, 18 decimals. */
+export const GTA_TOKEN = {
+  address: "0xc5f340e5376ae0cc00109ab78109a3218fb0d61b",
+  symbol: "GTA",
+  name: "Grand Transfer Agent",
+  decimals: 18,
+} as const;

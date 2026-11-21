@@ -222,7 +222,7 @@ describe("database migration 1 → 2", () => {
       ]);
       expect(
         (db.prepare("PRAGMA user_version").get() as { user_version: number }).user_version,
-      ).toBe(4);
+      ).toBe(5);
       expect((db.prepare("SELECT COUNT(*) AS c FROM categories").get() as { c: number }).c).toBe(9);
       // migration 3: old contacts belong to the local owner
       expect(new AddressBook(db).get("robinhood")?.address).toBe(ALICE);

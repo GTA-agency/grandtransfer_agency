@@ -125,6 +125,20 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX web_sessions_seen ON web_sessions (last_seen);
   `,
+  // 5 — token sends. The ledger row keeps the recipient and the gas (0 ETH moved); this adds what
+  //     token moved, so ETH totals and ETH limits stay exactly as they were.
+  `
+  CREATE TABLE token_transfers (
+    tx_hash       TEXT    NOT NULL,
+    wallet        TEXT    NOT NULL,
+    token         TEXT    NOT NULL,
+    symbol        TEXT    NOT NULL,
+    decimals      INTEGER NOT NULL,
+    amount_units  TEXT    NOT NULL,
+    PRIMARY KEY (tx_hash, wallet)
+  );
+  CREATE INDEX token_transfers_wallet ON token_transfers (wallet, token);
+  `,
 ];
 
 /** One prepared statement. node:sqlite's StatementSync fits; so does the Durable Object adapter. */

@@ -13,9 +13,11 @@ import {
   WalletAgent,
   createChainClient,
   createViemChainOps,
+  createViemTokenOps,
   createViemHistory,
   type ChainHistory,
   type ChainOps,
+  type TokenOps,
   type Config,
   type Database,
   type ChatMessage,
@@ -72,6 +74,7 @@ export class ServerState {
   readonly ledger: LedgerStore;
   readonly client: PublicClient;
   readonly chain: ChainOps;
+  readonly tokens: TokenOps;
   readonly quota: AiQuota;
   readonly limiter = new RateLimiter();
   readonly price = new EthUsdPrice();
@@ -102,6 +105,7 @@ export class ServerState {
     this.ledger = new LedgerStore(this.db);
     this.client = createChainClient(this.config.rpcUrls);
     this.chain = createViemChainOps(this.client, this.config.rpcUrls);
+    this.tokens = createViemTokenOps(this.client);
     this.history = createViemHistory(this.config.archiveRpcUrl);
     this.quota = new AiQuota(this.db, this.web.ai);
     this.llm = new OpenRouterClient({
@@ -137,6 +141,7 @@ export class ServerState {
           contacts,
           ledger: this.ledger,
           chain: this.chain,
+          tokens: this.tokens,
           limits: { maxTxWei: this.config.maxTxWei, maxDailyWei: this.config.maxDailyWei },
         }),
         sync: new LedgerSync({
@@ -169,6 +174,8 @@ export class ServerState {
           ledger: this.ledger,
           chain: this.chain,
           transfers: w.transfers,
+          tokens: this.tokens,
+          siteOrigin: this.web.publicOrigin?.origin ?? "http://127.0.0.1:4663",
           ethUsd: async () => (await this.price.get())?.usd,
           now: Date.now,
         },

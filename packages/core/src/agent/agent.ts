@@ -2,7 +2,13 @@ import type { Contact } from "../contacts.ts";
 import type { TransferDraft } from "../transfers.ts";
 import type { ChatMessage, LlmClient, LlmUsage } from "./llm.ts";
 import { buildSystemPrompt } from "./prompt.ts";
-import { TOOL_DEFINITIONS, runTool, type AgentContext, type ContactProposal } from "./tools.ts";
+import {
+  TOOL_DEFINITIONS,
+  runTool,
+  type AgentContext,
+  type ContactProposal,
+  type PaymentLinkOutcome,
+} from "./tools.ts";
 import type { UsageLog } from "./usage.ts";
 
 export interface AgentResponse {
@@ -12,6 +18,8 @@ export interface AgentResponse {
   draft?: TransferDraft;
   /** A contact waiting for the user's confirmation. */
   contactProposal?: ContactProposal;
+  /** A payment link the agent made this turn. */
+  paymentLink?: PaymentLinkOutcome;
   /** Which tools ran this turn, for debugging and UI hints. */
   toolCalls: { name: string; ok: boolean }[];
   usage: LlmUsage & { calls: number };
@@ -67,6 +75,7 @@ export class WalletAgent {
     const turn: ChatMessage[] = [{ role: "user", content: text }];
     let draft: TransferDraft | undefined;
     let contactProposal: ContactProposal | undefined;
+    let paymentLink: PaymentLinkOutcome | undefined;
 
     for (let step = 0; step < this.maxSteps; step++) {
       const messages: ChatMessage[] = [
@@ -95,6 +104,7 @@ export class WalletAgent {
         const out: AgentResponse = { message, toolCalls, usage };
         if (draft) out.draft = draft;
         if (contactProposal) out.contactProposal = contactProposal;
+        if (paymentLink) out.paymentLink = paymentLink;
         return out;
       }
 
@@ -103,6 +113,7 @@ export class WalletAgent {
         const outcome = await runTool(this.deps.ctx, call.function.name, call.function.arguments);
         toolCalls.push({ name: call.function.name, ok: !("error" in outcome.result) });
         if (outcome.draft) draft = outcome.draft;
+        if (outcome.paymentLink) paymentLink = outcome.paymentLink;
         if (outcome.contactProposal) {
           contactProposal = outcome.contactProposal;
           this.proposals.set(contactProposal.id, contactProposal);
@@ -120,6 +131,7 @@ export class WalletAgent {
     const out: AgentResponse = { message, toolCalls, usage };
     if (draft) out.draft = draft;
     if (contactProposal) out.contactProposal = contactProposal;
+    if (paymentLink) out.paymentLink = paymentLink;
     return out;
   }
 

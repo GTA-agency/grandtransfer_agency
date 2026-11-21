@@ -2,6 +2,7 @@ import {
   explorerAddressUrl,
   explorerTxUrl,
   formatEth,
+  formatTokenAmount,
   type ContactProposal,
   type LedgerEntry,
   type Recap,
@@ -24,6 +25,13 @@ export function draftDto(d: TransferDraft): DraftDto {
     dailySentEth: formatEth(d.dailySentWei),
     expiresAt: d.expiresAt,
     explorerAddressUrl: explorerAddressUrl(d.to),
+    token: d.token
+      ? {
+          symbol: d.token.symbol,
+          address: d.token.address,
+          amount: formatTokenAmount(d.token.amountUnits, d.token.decimals),
+        }
+      : null,
   };
 }
 
@@ -56,6 +64,9 @@ export function entryDto(e: LedgerEntry): EntryDto {
     note: e.note ?? null,
     source: e.source,
     explorerUrl: internal ? explorerAddressUrl(e.counterparty) : explorerTxUrl(e.hash),
+    token: e.token
+      ? { symbol: e.token.symbol, amount: formatTokenAmount(e.token.amountUnits, e.token.decimals) }
+      : null,
   };
 }
 

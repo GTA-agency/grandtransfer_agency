@@ -10,6 +10,14 @@ export function trimEth(eth: string, max = 6): string {
   return (neg ? "-" : "") + shown;
 }
 
+/** A token amount with thousands separators, e.g. "1,000.5". */
+export function fmtToken(amount: string, max = 4): string {
+  const t = trimEth(amount, max);
+  if (t.startsWith("<")) return t;
+  const [i, f] = t.split(".");
+  return i!.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + (f ? `.${f}` : "");
+}
+
 const pad = (n: number) => String(n).padStart(2, "0");
 export const fmtDate = (ms: number) =>
   new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });

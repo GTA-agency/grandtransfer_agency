@@ -1,5 +1,5 @@
 import type { Address, Hash } from "viem";
-import type { Database } from "./db.ts";
+import { inTransaction, type Database } from "./db.ts";
 
 export type LedgerStatus = "pending" | "confirmed" | "failed";
 export type LedgerSource = "agent" | "sync" | "internal";
@@ -18,6 +18,15 @@ export interface LedgerEntry {
   category: string | undefined;
   note: string | undefined;
   source: LedgerSource;
+  /** Set when this run moved a token instead of ETH (amountWei is then 0). */
+  token?: LedgerToken;
+}
+
+export interface LedgerToken {
+  address: Address;
+  symbol: string;
+  decimals: number;
+  amountUnits: bigint;
 }
 
 export interface LedgerSummary {
@@ -85,20 +94,81 @@ export class LedgerStore {
     contactName: string | undefined;
     amountWei: bigint;
     timestamp: number;
+    token?: LedgerToken;
   }): void {
-    this.db
+    inTransaction(this.db, () => {
+      this.db
+        .prepare(
+          `INSERT INTO ledger (tx_hash, direction, wallet, counterparty, contact_name, amount_wei, status, timestamp, source)
+           VALUES (?, 'out', ?, ?, ?, ?, 'pending', ?, 'agent')`,
+        )
+        .run(
+          entry.hash,
+          entry.wallet,
+          entry.to,
+          entry.contactName ?? null,
+          entry.amountWei.toString(),
+          entry.timestamp,
+        );
+      if (entry.token) {
+        this.db
+          .prepare(
+            `INSERT INTO token_transfers (tx_hash, wallet, token, symbol, decimals, amount_units)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+          )
+          .run(
+            entry.hash,
+            entry.wallet,
+            entry.token.address,
+            entry.token.symbol,
+            entry.token.decimals,
+            entry.token.amountUnits.toString(),
+          );
+      }
+    });
+  }
+
+  /** Token units sent since `sinceMs`, pending or confirmed (failed ones don't count). */
+  sumTokenOutgoingSince(wallet: Address, token: Address, sinceMs: number): bigint {
+    const rows = this.db
       .prepare(
-        `INSERT INTO ledger (tx_hash, direction, wallet, counterparty, contact_name, amount_wei, status, timestamp, source)
-         VALUES (?, 'out', ?, ?, ?, ?, 'pending', ?, 'agent')`,
+        `SELECT t.amount_units FROM token_transfers t
+         JOIN ledger l ON l.tx_hash = t.tx_hash AND lower(l.wallet) = lower(t.wallet) AND l.direction = 'out'
+         WHERE lower(t.wallet) = lower(?) AND lower(t.token) = lower(?)
+           AND l.status != 'failed' AND l.timestamp >= ?`,
       )
-      .run(
-        entry.hash,
-        entry.wallet,
-        entry.to,
-        entry.contactName ?? null,
-        entry.amountWei.toString(),
-        entry.timestamp,
-      );
+      .all(wallet, token, sinceMs) as unknown as { amount_units: string }[];
+    return rows.reduce((sum, r) => sum + BigInt(r.amount_units), 0n);
+  }
+
+  private withTokens(wallet: Address, entries: LedgerEntry[]): LedgerEntry[] {
+    if (entries.length === 0) return entries;
+    const rows = this.db
+      .prepare(
+        "SELECT tx_hash, token, symbol, decimals, amount_units FROM token_transfers WHERE lower(wallet) = lower(?)",
+      )
+      .all(wallet) as unknown as {
+      tx_hash: string;
+      token: string;
+      symbol: string;
+      decimals: number;
+      amount_units: string;
+    }[];
+    if (rows.length === 0) return entries;
+    const byHash = new Map(rows.map((r) => [r.tx_hash, r]));
+    return entries.map((e) => {
+      const t = e.direction === "out" ? byHash.get(e.hash) : undefined;
+      if (!t) return e;
+      return {
+        ...e,
+        token: {
+          address: t.token as Address,
+          symbol: t.symbol,
+          decimals: t.decimals,
+          amountUnits: BigInt(t.amount_units),
+        },
+      };
+    });
   }
 
   markSettled(
@@ -240,7 +310,7 @@ export class LedgerStore {
          ORDER BY timestamp DESC, id DESC LIMIT ?`,
       )
       .all(wallet, Math.max(1, Math.min(100, Math.floor(limit)))) as unknown as LedgerRow[];
-    return rows.map(toEntry);
+    return this.withTokens(wallet, rows.map(toEntry));
   }
 
   /** Entries whose hash starts with `prefix` (case-insensitive), newest first. */
@@ -253,7 +323,7 @@ export class LedgerStore {
          ORDER BY timestamp DESC LIMIT 10`,
       )
       .all(wallet, `${p.replace(/[\\%_]/g, (c) => `\\${c}`)}%`) as unknown as LedgerRow[];
-    return rows.map(toEntry);
+    return this.withTokens(wallet, rows.map(toEntry));
   }
 
   /** Entries with fromMs <= timestamp < toMs, oldest first. */
@@ -264,7 +334,7 @@ export class LedgerStore {
          ORDER BY timestamp ASC, id ASC`,
       )
       .all(wallet, fromMs, toMs) as unknown as LedgerRow[];
-    return rows.map(toEntry);
+    return this.withTokens(wallet, rows.map(toEntry));
   }
 
   /** Totals since `sinceMs` (failed transfers excluded from amounts, but their fees count). */

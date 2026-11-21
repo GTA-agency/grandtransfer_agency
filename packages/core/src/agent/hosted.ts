@@ -51,7 +51,7 @@ export class HostedLlmClient implements LlmClient {
     void tools; // the server uses its own tool list
     for (let attempt = 0; attempt < 2; attempt++) {
       if (!this.token) await this.signIn();
-      const res = await this.request("/api/llm", { messages }, this.token);
+      const res = await this.request("/api/llm", { messages, toolset: 2 }, this.token);
       if (res.status === 401 && attempt === 0) {
         this.token = undefined; // expired or ended elsewhere: sign in once more
         continue;

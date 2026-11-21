@@ -13,3 +13,5 @@ export * from "./rpc.ts";
 export * from "./transfers.ts";
 export * from "./vault.ts";
 export * from "./price.ts";
+export * from "./pay-link.ts";
+export * from "./tokens.ts";

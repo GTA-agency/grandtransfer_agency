@@ -4,6 +4,7 @@ import {
   explorerAddressUrl,
   formatEth,
   formatUsd,
+  planAmount,
   type TransferDraft,
   type TransferResult,
   type TransferService,
@@ -27,6 +28,7 @@ export interface SendFlowDeps {
 }
 
 const MAX_TRIES = 3;
+type Row = [string, string];
 
 /** The confirmation box shown before anything is signed. */
 export function planBox(d: TransferDraft, ethUsd?: string): string[] {
@@ -34,9 +36,12 @@ export function planBox(d: TransferDraft, ethUsd?: string): string[] {
   const lines = rows([
     ["To", d.contactName ? c.bold(c.cream(d.contactName)) : c.gold("unknown address")],
     ["Address", c.cream(d.to)],
-    ["Amount", c.bold(c.cream(`${formatEth(d.amountWei)} ETH`)) + usd(d.amountWei)],
+    ["Amount", c.bold(c.cream(planAmount(d))) + (d.token ? "" : usd(d.amountWei))],
+    ...(d.token ? ([["Token", `Official $${d.token.symbol} ${d.token.address}`]] as Row[]) : []),
     ["Est. gas", `${formatEth(d.estimatedFeeWei)} ETH ${c.dim("(max)")}`],
-    ["Total", c.bold(`${formatEth(d.totalWei)} ETH`) + usd(d.totalWei)],
+    ...(d.token
+      ? []
+      : ([["Total", c.bold(`${formatEth(d.totalWei)} ETH`) + usd(d.totalWei)]] as Row[])),
     ["Wanted level", stars(d.wantedLevel)],
     ["Network", "Robinhood Chain (4663)"],
   ]);
@@ -57,7 +62,7 @@ function successBox(r: TransferResult, d: TransferDraft): string[] {
   const head =
     r.status === "confirmed" ? c.bold(c.lime("CLEAN GETAWAY")) : c.bold(c.gold("ON THE ROAD"));
   const lines = [
-    `${formatEth(d.amountWei)} ETH → ${d.contactName ?? d.to}`,
+    `${planAmount(d)} → ${d.contactName ?? d.to}`,
     ...rows([
       ["Tx", r.hash],
       ...(r.feeWei !== undefined
@@ -128,7 +133,7 @@ export async function confirmAndSend(
   try {
     const result = await deps.transfers.execute(draft.id, { confirmed: true });
     if (result.status === "failed") {
-      const reason = `The transaction was mined but reverted. Gas was spent; the ETH did not move. ${result.explorerUrl}`;
+      const reason = `The transaction was mined but reverted. Gas was spent; the ${draft.token?.symbol ?? "ETH"} did not move. ${result.explorerUrl}`;
       for (const l of bustedBox(reason)) out.line(l);
       return { kind: "busted", reason };
     }

@@ -4,7 +4,7 @@ import { useConnection, useDisconnect } from "wagmi";
 import { api } from "@/lib/api";
 import { incomingToast, useIncomingWatch } from "@/lib/incoming";
 import { useEthUsd } from "@/lib/usd";
-import { shortAddr } from "@/lib/format";
+import { fmtToken, shortAddr } from "@/lib/format";
 import type { ContactDto, DraftDto, OverviewDto, SessionDto } from "@/shared/types";
 import { Books } from "./Books";
 import { Crew } from "./Crew";
@@ -94,6 +94,9 @@ export function Dashboard({
                 ? "road"
                 : "lose",
           amountEth: draft.amountEth,
+          ...(draft.token
+            ? { tokenLabel: `${fmtToken(draft.token.amount, 18)} ${draft.token.symbol}` }
+            : {}),
           to,
           hash: o.result.hash,
           explorerUrl: o.result.explorerUrl,
@@ -101,7 +104,7 @@ export function Dashboard({
           ...(o.result.status === "failed"
             ? {
                 reason:
-                  "The transaction was mined but reverted. Gas was spent; the ETH did not move.",
+                  `The transaction was mined but reverted. Gas was spent; the ${draft.token?.symbol ?? "ETH"} did not move.`,
               }
             : {}),
         } as ResultView);

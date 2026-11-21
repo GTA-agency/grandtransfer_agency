@@ -3811,3 +3811,116 @@ main#top > .hero:first-child .hero-body {
     animation: none;
   }
 }
+
+/* ---- payment links ---- */
+.balance-token {
+  margin-top: 4px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #9fe3c8;
+}
+.pay-link-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 8px 12px;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.06);
+}
+.pay-link-row .mono {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.plan-note {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  color: var(--text-2);
+}
+.pay-hero {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  min-height: max(720px, calc(100svh - 36px));
+  padding: 112px 16px 48px;
+  border-radius: var(--radius-xl, 28px);
+}
+.pay-card {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  gap: 14px;
+  width: min(100%, 520px);
+  padding: 24px;
+  border-radius: 22px;
+  background: rgb(14 15 29 / 0.92);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.14), 0 30px 60px -20px rgb(0 0 0 / 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.pay-card .eyebrow {
+  margin: 0;
+}
+.pay-amount {
+  font-family: var(--font-anton), Impact, sans-serif;
+  font-size: clamp(44px, 9vw, 64px);
+  line-height: 1;
+  color: var(--cream);
+  overflow-wrap: anywhere;
+}
+.pay-amount small {
+  font-size: 0.5em;
+  color: #ff9cc2;
+}
+.pay-card .balance-usd {
+  margin-top: -8px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-2);
+}
+.pay-mobile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.pay-mobile p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-2);
+}
+.pay-rows .mono {
+  overflow-wrap: anywhere;
+  font-size: 12.5px;
+}
+.pay-next,
+.pay-own p {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 14.5px;
+}
+.pay-own {
+  display: grid;
+  gap: 10px;
+}
+.pay-bad {
+  margin: 0;
+  font-family: var(--font-anton), Impact, sans-serif;
+  font-weight: 400;
+  font-size: 36px;
+  text-transform: uppercase;
+  color: var(--cream);
+}
+.pay-done {
+  margin: 0;
+  font-weight: 700;
+  color: #9fe3c8;
+}
+.pay-done a {
+  color: var(--cream);
+}

@@ -103,6 +103,10 @@ describe("tool surface", () => {
       "prepare_transfer",
       "get_ledger_summary",
       "list_recent_transactions",
+      "check_contract",
+      "get_token_balance",
+      "prepare_token_transfer",
+      "create_payment_link",
     ]);
     expect(names.some((n) => /send|execute|sign|confirm/i.test(n))).toBe(false);
   });

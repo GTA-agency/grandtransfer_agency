@@ -53,6 +53,7 @@ export function useSendFlow() {
             chainId: ROBINHOOD_CHAIN_ID,
             to: tx.to,
             value: BigInt(tx.value),
+            ...(tx.data ? { data: tx.data } : {}),
             gas: BigInt(tx.gas),
             maxFeePerGas: BigInt(tx.maxFeePerGas),
             maxPriorityFeePerGas: BigInt(tx.maxPriorityFeePerGas),

@@ -9,6 +9,8 @@ export type ResultView =
   | {
       kind: "win" | "road";
       amountEth: string;
+      /** Shown instead of the ETH amount for a token send. */
+      tokenLabel?: string;
       to: string;
       hash: string;
       explorerUrl: string;
@@ -62,8 +64,8 @@ export function ResultOverlay({ view, onClose }: { view: ResultView; onClose: ()
             <>
               <div>
                 <div className="amount">
-                  {view.amountEth} ETH
-                  {usdLabel(view.amountEth, usd) && (
+                  {view.tokenLabel ?? `${view.amountEth} ETH`}
+                  {!view.tokenLabel && usdLabel(view.amountEth, usd) && (
                     <span className="usd-inline big">{usdLabel(view.amountEth, usd)}</span>
                   )}
                 </div>

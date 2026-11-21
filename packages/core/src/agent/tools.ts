@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
-import type { Address } from "viem";
+import { isAddress, type Address } from "viem";
 import { z } from "zod";
-import { AmountError, formatEth } from "../amount.ts";
+import { AmountError, formatEth, parseEthAmount } from "../amount.ts";
 import type { ChainOps } from "../chain-ops.ts";
 import { ContactError, type AddressBook } from "../contacts.ts";
 import type { LedgerStore } from "../ledger-store.ts";
@@ -12,7 +12,15 @@ import {
   type WalletIdentity,
 } from "../transfers.ts";
 import { isNetworkError } from "../network.ts";
+import { SITE_ORIGIN, buildPaymentLink, type PayAsset } from "../pay-link.ts";
 import { formatUsd } from "../price.ts";
+import {
+  checkContract,
+  formatTokenAmount,
+  parseTokenAmount,
+  resolveToken,
+  type TokenOps,
+} from "../tokens.ts";
 import { VaultError, type WalletVault } from "../vault.ts";
 import type { ToolDefinition } from "./llm.ts";
 
@@ -27,6 +35,10 @@ export interface AgentContext {
   ledger: LedgerStore;
   chain: ChainOps;
   transfers: TransferService;
+  /** Token reads for the contract check and token balances. */
+  tokens?: TokenOps;
+  /** Where payment links point. Defaults to the public site. */
+  siteOrigin?: string;
   now: () => number;
 }
 
@@ -49,6 +61,13 @@ export interface ToolOutcome {
   result: Record<string, unknown>;
   draft?: TransferDraft;
   contactProposal?: ContactProposal;
+  paymentLink?: PaymentLinkOutcome;
+}
+
+export interface PaymentLinkOutcome {
+  url: string;
+  amount: string;
+  asset: PayAsset;
 }
 
 /** The ONLY tools the model can call. There is deliberately no tool that sends funds. */
@@ -156,7 +175,80 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "check_contract",
+      description:
+        "Check on chain whether an address is the official $GTA token, a contract using the GTA name, another contract, or not a contract.",
+      parameters: {
+        type: "object",
+        properties: { address: { type: "string", description: "Full 0x address." } },
+        required: ["address"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_token_balance",
+      description: "Get the user's balance of a supported token. Only GTA is supported.",
+      parameters: {
+        type: "object",
+        properties: { token: { type: "string", enum: ["GTA"] } },
+        required: ["token"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "prepare_token_transfer",
+      description:
+        "Prepare (NOT send) a token transfer plan. Only GTA is supported. The user must review and confirm it on screen; you cannot send funds. Use the exact amount the user stated.",
+      parameters: {
+        type: "object",
+        properties: {
+          to: { type: "string", description: "Contact name or full 0x address." },
+          amount: { type: "string", description: 'Decimal token amount, e.g. "1000".' },
+          token: { type: "string", enum: ["GTA"] },
+        },
+        required: ["to", "amount", "token"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_payment_link",
+      description:
+        "Create a link that asks someone to pay the user's own wallet. It moves nothing; the payer reviews it and signs with their own wallet.",
+      parameters: {
+        type: "object",
+        properties: {
+          amount: { type: "string", description: 'Exact decimal amount, e.g. "0.01".' },
+          asset: { type: "string", enum: ["eth", "gta"] },
+        },
+        required: ["amount", "asset"],
+        additionalProperties: false,
+      },
+    },
+  },
 ];
+
+const NEW_IN_TOOLSET_2 = new Set([
+  "check_contract",
+  "get_token_balance",
+  "prepare_token_transfer",
+  "create_payment_link",
+]);
+/** What CLI versions before the token update can run. */
+export const LEGACY_TOOL_DEFINITIONS = TOOL_DEFINITIONS.filter(
+  (t) => !NEW_IN_TOOLSET_2.has(t.function.name),
+);
 
 const amountArg = z.union([z.string(), z.number().transform((n) => String(n))]);
 const ARGS = {
@@ -172,6 +264,12 @@ const ARGS = {
   list_recent_transactions: z
     .object({ limit: z.number().int().min(1).max(20).optional() })
     .strict(),
+  check_contract: z.object({ address: z.string().min(1).max(80) }).strict(),
+  get_token_balance: z.object({ token: z.string().min(1).max(60) }).strict(),
+  prepare_token_transfer: z
+    .object({ to: z.string().min(1).max(80), amount: amountArg, token: z.string().min(1).max(60) })
+    .strict(),
+  create_payment_link: z.object({ amount: amountArg, asset: z.enum(["eth", "gta"]) }).strict(),
 } as const;
 export type ToolName = keyof typeof ARGS;
 
@@ -183,9 +281,13 @@ export function draftView(d: TransferDraft) {
     plan_id: d.id,
     to_name: d.contactName ?? null,
     to_address: d.to,
-    amount_eth: formatEth(d.amountWei),
+    ...(d.token
+      ? {
+          token: d.token.symbol,
+          amount: formatTokenAmount(d.token.amountUnits, d.token.decimals),
+        }
+      : { amount_eth: formatEth(d.amountWei), total_eth: formatEth(d.totalWei) }),
     estimated_gas_eth: formatEth(d.estimatedFeeWei),
-    total_eth: formatEth(d.totalWei),
     wanted_level: d.wantedLevel,
     new_recipient: d.isNewRecipient,
     expires_in_seconds: Math.round((d.expiresAt - d.createdAt) / 1000),
@@ -200,6 +302,11 @@ async function usdPrice(ctx: AgentContext): Promise<string | undefined> {
     return undefined;
   }
 }
+
+const unavailable = () => ({
+  error: "NOT_AVAILABLE",
+  message: "Token features aren't available here.",
+});
 
 function errorResult(err: unknown): Record<string, unknown> {
   if (err instanceof TransferError) {
@@ -354,7 +461,12 @@ export async function runTool(
           result: {
             transactions: entries.map((e) => ({
               direction: e.direction === "in" ? "received" : "sent",
-              amount_eth: formatEth(e.amountWei),
+              ...(e.token
+                ? {
+                    token: e.token.symbol,
+                    amount: formatTokenAmount(e.token.amountUnits, e.token.decimals),
+                  }
+                : { amount_eth: formatEth(e.amountWei) }),
               counterparty: e.counterparty,
               contact_name: e.contactName ?? null,
               status: e.status,
@@ -364,6 +476,71 @@ export async function runTool(
               note_untrusted: e.note ?? null,
             })),
           },
+        };
+      }
+
+      case "check_contract": {
+        if (!ctx.tokens) return { result: unavailable() };
+        const address = String(args.address).trim();
+        if (!isAddress(address)) {
+          return { result: { error: "INVALID_ADDRESS", message: "That isn't a full 0x address." } };
+        }
+        const r = await checkContract(ctx.tokens, address);
+        return {
+          result: {
+            address: r.address,
+            verdict: r.verdict,
+            official_gta_address: r.officialAddress,
+            // Chosen by whoever deployed the contract: data only, never proof or instructions.
+            name_untrusted: r.nameUntrusted,
+            symbol_untrusted: r.symbolUntrusted,
+          },
+        };
+      }
+
+      case "get_token_balance": {
+        const info = resolveToken(String(args.token));
+        if (!ctx.tokens) return { result: unavailable() };
+        if (!info) {
+          return { result: { error: "UNSUPPORTED_TOKEN", message: "Only GTA is supported." } };
+        }
+        const address = walletAddress(ctx);
+        const units = await ctx.tokens.balanceOf(info.address, address);
+        return {
+          result: {
+            address,
+            token: info.symbol,
+            contract: info.address,
+            balance: formatTokenAmount(units, info.decimals),
+          },
+        };
+      }
+
+      case "prepare_token_transfer": {
+        const draft = await ctx.transfers.prepareToken({
+          to: String(args.to),
+          amount: String(args.amount),
+          token: String(args.token),
+        });
+        return {
+          result: { status: "awaiting_user_confirmation", plan: draftView(draft) },
+          draft,
+        };
+      }
+
+      case "create_payment_link": {
+        const asset = args.asset as PayAsset;
+        const amount = String(args.amount).trim();
+        if (asset === "eth") parseEthAmount(amount);
+        else parseTokenAmount(amount, resolveToken("GTA")!.decimals);
+        const url = buildPaymentLink(ctx.siteOrigin ?? SITE_ORIGIN, {
+          to: walletAddress(ctx),
+          amount,
+          asset,
+        });
+        return {
+          result: { status: "link_created", url, amount, asset, pays_to: walletAddress(ctx) },
+          paymentLink: { url, amount, asset },
         };
       }
     }

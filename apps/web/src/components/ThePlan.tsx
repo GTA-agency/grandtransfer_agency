@@ -2,7 +2,8 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { api, errorMessage } from "@/lib/api";
 import { shortAddr } from "@/lib/format";
-import type { ChatReplyDto, DraftDto, ProposalDto } from "@/shared/types";
+import type { ChatReplyDto, DraftDto, PaymentLinkDto, ProposalDto } from "@/shared/types";
+import { CopyButton } from "./CopyButton";
 import { IconSend } from "./Icons";
 import { PlanCard, type PlanStatus } from "./PlanCard";
 import { Scene } from "./Scene";
@@ -11,7 +12,8 @@ import type { SendOutcome } from "./send-flow";
 type Item =
   | { id: number; kind: "user" | "agent" | "app" | "error"; text: string }
   | { id: number; kind: "draft"; draft: DraftDto; status: PlanStatus }
-  | { id: number; kind: "proposal"; proposal: ProposalDto; status: "open" | "saved" | "dismissed" };
+  | { id: number; kind: "proposal"; proposal: ProposalDto; status: "open" | "saved" | "dismissed" }
+  | { id: number; kind: "link"; link: PaymentLinkDto };
 
 type NewItem = Item extends infer T ? (T extends Item ? Omit<T, "id"> : never) : never;
 
@@ -31,6 +33,8 @@ const SUGGESTIONS = [
   "What's my balance?",
   "Show my robinhood address",
   "Send 0.0001 ETH to robinhood",
+  "Show my $GTA balance",
+  "Request 0.01 ETH",
   "Recap this month",
 ];
 
@@ -44,7 +48,7 @@ export const ThePlan = forwardRef<ThePlanHandle, Props>(function ThePlan(
     {
       id: 0,
       kind: "agent",
-      text: "Hey. Tell me what you want in plain words: send ETH, show an address, recap your month. I'll lay out the plan; nothing moves until you confirm.",
+      text: "Hey. Tell me what you want in plain words: send ETH or $GTA, check if a contract is real, request a payment, recap your month. I'll lay out the plan; nothing moves until you confirm.",
     },
   ]);
   const [text, setText] = useState("");
@@ -81,6 +85,7 @@ export const ThePlan = forwardRef<ThePlanHandle, Props>(function ThePlan(
       if (r.draft) add.push({ kind: "draft", draft: r.draft, status: "open" });
       if (r.contactProposal)
         add.push({ kind: "proposal", proposal: r.contactProposal, status: "open" });
+      if (r.paymentLink) add.push({ kind: "link", link: r.paymentLink });
       push(...add);
       onAnswered?.();
     } catch (err) {
@@ -153,6 +158,17 @@ export const ThePlan = forwardRef<ThePlanHandle, Props>(function ThePlan(
                 {s}
               </button>
             ))}
+            <button
+              type="button"
+              className="suggestion"
+              onClick={() => {
+                setText("Is this the real $GTA? 0x");
+                inputRef.current?.focus({ preventScroll: true });
+              }}
+              disabled={busy}
+            >
+              Check a contract
+            </button>
           </div>
         </div>
 
@@ -202,6 +218,25 @@ export const ThePlan = forwardRef<ThePlanHandle, Props>(function ThePlan(
                       status={it.status}
                       onFinished={finishDraft(it)}
                     />
+                  );
+                }
+                if (it.kind === "link") {
+                  return (
+                    <div key={it.id} className="plan-card">
+                      <div className="title-row">
+                        <p className="eyebrow">Payment link</p>
+                        <span className="pill mint">
+                          {it.link.amount} {it.link.asset.toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="pay-link-row">
+                        <span className="mono">{it.link.url}</span>
+                        <CopyButton text={it.link.url} label="Copy payment link" />
+                      </div>
+                      <p className="plan-note">
+                        Pays your wallet. They review it and sign with their own wallet.
+                      </p>
+                    </div>
                   );
                 }
                 if (it.kind === "proposal") {

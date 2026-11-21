@@ -14,6 +14,7 @@ import {
   createChainClient,
   createFileUsageLog,
   createViemChainOps,
+  createViemTokenOps,
   createViemHistory,
   loadConfigFromEnv,
   openDatabase,
@@ -64,11 +65,13 @@ export function createContext(): AppContext {
   const books = new Books(db, ledger);
   const client = createChainClient(config.rpcUrls);
   const chain = createViemChainOps(client, config.rpcUrls);
+  const tokens = createViemTokenOps(client);
   const transfers = new TransferService({
     vault,
     contacts,
     ledger,
     chain,
+    tokens,
     limits: { maxTxWei: config.maxTxWei, maxDailyWei: config.maxDailyWei },
   });
   const usagePath = join(config.dataDir, "usage.jsonl");
@@ -110,7 +113,7 @@ export function createContext(): AppContext {
               },
             }),
         model: ownKey ? ownModel : "hosted",
-        ctx: { vault, contacts, ledger, chain, transfers, ethUsd, now: Date.now },
+        ctx: { vault, contacts, ledger, chain, transfers, tokens, ethUsd, now: Date.now },
         usageLog: createFileUsageLog(usagePath),
       })),
   };

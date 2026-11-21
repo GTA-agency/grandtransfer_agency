@@ -1,4 +1,4 @@
-import { fmtDate, shortAddr, trimEth } from "@/lib/format";
+import { fmtDate, shortAddr, trimEth, fmtToken } from "@/lib/format";
 import type { NotifyState } from "@/lib/incoming";
 import type { EntryDto } from "@/shared/types";
 import { StatusPill } from "./Books";
@@ -77,7 +77,9 @@ export function LatestRuns({
                   />
                   <div className="run-amt">
                     {e.direction === "in" ? "+" : "-"}
-                    {trimEth(e.amountEth)} ETH
+                    {e.token
+                      ? `${fmtToken(e.token.amount)} ${e.token.symbol}`
+                      : `${trimEth(e.amountEth)} ETH`}
                   </div>
                 </div>
                 <div className="run-body">

@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { api, errorMessage } from "@/lib/api";
-import { fmtDateTime, shortAddr, trimEth } from "@/lib/format";
+import { fmtDateTime, shortAddr, trimEth, fmtToken } from "@/lib/format";
 import { usdLabel, useEthUsd } from "@/lib/usd";
 import type { CategoryDto, EntryDto, PeriodPreset, RecapDto, SyncDto } from "@/shared/types";
 import { CategoryChart, InOutChart, Legend } from "./Charts";
@@ -289,7 +289,9 @@ function LedgerTable({
                 </td>
                 <td className={`amt ${e.direction}`}>
                   {e.direction === "in" ? "+" : "-"}
-                  {trimEth(e.amountEth, 9)} ETH
+                  {e.token
+                    ? `${fmtToken(e.token.amount)} ${e.token.symbol}`
+                    : `${trimEth(e.amountEth, 9)} ETH`}
                   {e.feeEth && e.direction === "out" && (
                     <div className="faint" style={{ fontWeight: 400, fontSize: 11.5 }}>
                       gas {trimEth(e.feeEth, 9)}
