@@ -40,12 +40,23 @@ gta help                       # every command
 gta --version
 ```
 
+## Ask the agent
+
+```text
+send 0.01 eth to robinhood        # plan an ETH send
+send 1000 GTA to alex             # plan a $GTA send
+is 0x… the real $GTA?             # check a contract on chain
+request 0.01 ETH                  # make a payment link that pays your wallet
+what did I spend this month?      # read your books
+```
+
 ## Safety
 
 - **Your key stays on your machine.** It lives in an encrypted keystore (scrypt + AES), file mode 600. It is decrypted only while you send and locks itself after 5 idle minutes.
 - **The AI only plans.** It can read your balance, contacts and ledger and draft a transfer. It has no tool that sends or signs anything.
 - **You confirm every send.** You see the recipient (name and full address), the amount, the gas and the total, then type `yes` and your password.
 - **Limits in code.** At most 0.05 ETH per send and 0.2 ETH per 24 hours by default. Change them with `MAX_TX_ETH` and `MAX_DAILY_ETH` in `~/.grand-transfer-agent/.env`.
+- **Only the official $GTA can be sent.** Token sends have their own limits: 10,000,000 GTA per send and 50,000,000 per 24 hours.
 - **Your 12-word recovery phrase is shown once.** Write it on paper; no one can recover it for you.
 
 ## Settings
