@@ -186,12 +186,12 @@ describe("Books.exportCsv", () => {
     const csv = books.exportCsv(W, books.period("month", W));
     const lines = csv.trim().split("\r\n");
     expect(lines[0]).toBe(
-      '"date","direction","amount_eth","fee_eth","status","counterparty","contact","category","note","tx_hash","explorer_url"',
+      '"date","direction","amount_eth","fee_eth","status","counterparty","contact","category","note","tx_hash","explorer_url","token","token_amount"',
     );
     expect(lines[1]).toContain('"sent","0.1","0.000000000000021","confirmed"');
     expect(lines[1]).toContain(`"'=cmd|""/c calc""!A1, ""quoted"""`);
     expect(lines[1]).toContain(`"https://robinhoodchain.blockscout.com/tx/${h}"`);
-    expect(lines[2]).toMatch(/"received","0.02",.*"contract transfer".*"internal:\d+",""$/);
+    expect(lines[2]).toMatch(/"received","0.02",.*"contract transfer".*"internal:\d+","","",""$/);
   });
 });
 
@@ -222,7 +222,7 @@ describe("database migration 1 → 2", () => {
       ]);
       expect(
         (db.prepare("PRAGMA user_version").get() as { user_version: number }).user_version,
-      ).toBe(5);
+      ).toBe(7);
       expect((db.prepare("SELECT COUNT(*) AS c FROM categories").get() as { c: number }).c).toBe(9);
       // migration 3: old contacts belong to the local owner
       expect(new AddressBook(db).get("robinhood")?.address).toBe(ALICE);

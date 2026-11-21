@@ -31,6 +31,8 @@
     // Requests to any other production host (workers.dev, www) are redirected here.
     "CANONICAL_HOST": "grandtransfer.agency",
     "OPENROUTER_MODEL": "anthropic/claude-sonnet-5.5",
+    // Plain read questions only; anything that could move money stays on the model above.
+    "OPENROUTER_LIGHT_MODEL": "anthropic/claude-haiku-5.5",
     "MAX_TX_ETH": "0.05",
     "MAX_DAILY_ETH": "0.2",
     "AI_MESSAGES_PER_WALLET_DAY": "30",

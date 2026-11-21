@@ -139,6 +139,30 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX token_transfers_wallet ON token_transfers (wallet, token);
   `,
+  // 6 — incoming tokens: how far each wallet's token logs have been read.
+  `
+  CREATE TABLE token_sync (
+    wallet      TEXT    NOT NULL COLLATE NOCASE,
+    token       TEXT    NOT NULL COLLATE NOCASE,
+    last_block  INTEGER NOT NULL,
+    updated_at  INTEGER NOT NULL,
+    PRIMARY KEY (wallet, token)
+  );
+  `,
+  // 7 — the token checkpoint also keeps the balance and nonce at that block, so whole ranges with
+  //     no change can be skipped (free RPCs only serve 100 blocks of logs per query).
+  `
+  DROP TABLE token_sync;
+  CREATE TABLE token_sync (
+    wallet         TEXT    NOT NULL COLLATE NOCASE,
+    token          TEXT    NOT NULL COLLATE NOCASE,
+    last_block     INTEGER NOT NULL,
+    balance_units  TEXT    NOT NULL,
+    nonce          INTEGER NOT NULL,
+    updated_at     INTEGER NOT NULL,
+    PRIMARY KEY (wallet, token)
+  );
+  `,
 ];
 
 /** One prepared statement. node:sqlite's StatementSync fits; so does the Durable Object adapter. */

@@ -1,4 +1,4 @@
-import { createPublicClient, http, type Address, type Hash } from "viem";
+import { createPublicClient, erc20Abi, http, parseAbiItem, type Address, type Hash } from "viem";
 import { robinhoodChain } from "../chain.ts";
 
 export interface HistoryTx {
@@ -25,7 +25,28 @@ export interface ChainHistory {
   getReceipt(hash: Hash): Promise<HistoryReceipt | null>;
   /** Whether the node knows the transaction at all (mined or waiting in its mempool). */
   isKnownTransaction(hash: Hash): Promise<boolean>;
+  getTokenBalanceAt?(token: Address, owner: Address, block: number): Promise<bigint>;
+  /** ERC-20 transfers to `to` in an inclusive block range. Throws if the range is too wide. */
+  getTokenTransfersTo?(
+    token: Address,
+    to: Address,
+    fromBlock: number,
+    toBlock: number,
+  ): Promise<HistoryTokenLog[]>;
+  getBlockTimestamp?(block: number): Promise<number>;
 }
+
+export interface HistoryTokenLog {
+  hash: Hash;
+  logIndex: number;
+  blockNumber: number;
+  from: Address;
+  value: bigint;
+}
+
+const TRANSFER = parseAbiItem(
+  "event Transfer(address indexed from, address indexed to, uint256 value)",
+);
 
 /**
  * Archive RPC for history. Verified 2026-11-19: dRPC's public endpoint serves historical
@@ -55,7 +76,43 @@ export function createViemHistory(archiveRpcUrl: string = DEFAULT_ARCHIVE_RPC_UR
       onFetchRequest: pace,
     }),
   });
+  // Log queries fail fast: the caller retries with a narrower range instead of waiting a minute.
+  const logsClient = createPublicClient({
+    chain: robinhoodChain,
+    transport: http(archiveRpcUrl, {
+      timeout: 15_000,
+      retryCount: 1,
+      retryDelay: 800,
+      onFetchRequest: pace,
+    }),
+  });
   return {
+    getTokenBalanceAt: (token, owner, block) =>
+      logsClient.readContract({
+        address: token,
+        abi: erc20Abi,
+        functionName: "balanceOf",
+        args: [owner],
+        blockNumber: BigInt(block),
+      }),
+    getTokenTransfersTo: async (token, to, fromBlock, toBlock) => {
+      const logs = await logsClient.getLogs({
+        address: token,
+        event: TRANSFER,
+        args: { to },
+        fromBlock: BigInt(fromBlock),
+        toBlock: BigInt(toBlock),
+      });
+      return logs.map((l) => ({
+        hash: l.transactionHash,
+        logIndex: l.logIndex,
+        blockNumber: Number(l.blockNumber),
+        from: l.args.from!,
+        value: l.args.value ?? 0n,
+      }));
+    },
+    getBlockTimestamp: async (block) =>
+      Number((await client.getBlock({ blockNumber: BigInt(block) })).timestamp),
     getHeadBlock: async () => Number(await client.getBlockNumber()),
     getBalanceAt: (address, block) => client.getBalance({ address, blockNumber: BigInt(block) }),
     getNonceAt: (address, block) =>

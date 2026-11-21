@@ -8,12 +8,14 @@ import type { AiLimits } from "@gta/core";
  *   GTA_TRUST_PROXY=true            take the client IP from X-Forwarded-For (behind a proxy)
  *   AI_MESSAGES_PER_WALLET_DAY=30   0 = unlimited (default: 30 public, unlimited local)
  *   AI_DAILY_BUDGET_USD=3           0 = unlimited (default: 3 public, unlimited local)
+ *   OPENROUTER_LIGHT_MODEL=…        cheaper model for plain read questions; empty turns it off
  */
 export interface WebConfig {
   publicMode: boolean;
   publicOrigin: URL | null;
   trustProxy: boolean;
   ai: AiLimits;
+  lightModel: string;
 }
 
 export class WebConfigError extends Error {}
@@ -61,5 +63,6 @@ export function loadWebConfig(env: NodeJS.ProcessEnv = process.env): WebConfig {
       messagesPerWalletPerDay: num(env, "AI_MESSAGES_PER_WALLET_DAY", publicMode ? 30 : 0),
       dailyBudgetUsd: num(env, "AI_DAILY_BUDGET_USD", publicMode ? 3 : 0),
     },
+    lightModel: (env.OPENROUTER_LIGHT_MODEL ?? "anthropic/claude-haiku-5.5").trim(),
   };
 }

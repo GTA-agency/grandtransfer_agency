@@ -49,3 +49,6 @@ export const GTA_TOKEN = {
   name: "Grand Transfer Agent",
   decimals: 18,
 } as const;
+
+/** Holding at least this much $GTA raises the wallet's daily agent messages. */
+export const GTA_HOLDER_PERK = { minTokens: "100000", messagesPerDay: 60 } as const;

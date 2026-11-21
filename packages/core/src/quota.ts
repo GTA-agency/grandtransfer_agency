@@ -30,9 +30,9 @@ export class AiQuota {
   }
 
   /** Throws QuotaError when this wallet (or everyone together) has used today's allowance. */
-  check(wallet: string): void {
+  check(wallet: string, perWallet: number = this.limits.messagesPerWalletPerDay): void {
     const day = this.day();
-    const { messagesPerWalletPerDay: perWallet, dailyBudgetUsd: budget } = this.limits;
+    const { dailyBudgetUsd: budget } = this.limits;
     if (perWallet > 0) {
       const row = this.db
         .prepare("SELECT messages FROM ai_usage WHERE day = ? AND wallet = ?")
@@ -77,10 +77,13 @@ export class AiQuota {
       .run(this.day(), wallet, costUsd ?? 0);
   }
 
-  usedToday(wallet: string): { messages: number; limit: number } {
+  usedToday(
+    wallet: string,
+    limit: number = this.limits.messagesPerWalletPerDay,
+  ): { messages: number; limit: number } {
     const row = this.db
       .prepare("SELECT messages FROM ai_usage WHERE day = ? AND wallet = ?")
       .get(this.day(), wallet) as { messages: number } | undefined;
-    return { messages: row?.messages ?? 0, limit: this.limits.messagesPerWalletPerDay };
+    return { messages: row?.messages ?? 0, limit };
   }
 }

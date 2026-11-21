@@ -2,11 +2,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { EntryDto, OverviewDto, SyncDto } from "@/shared/types";
 import { api } from "./api";
-import { shortAddr, trimEth } from "./format";
+import { fmtToken, shortAddr, trimEth } from "./format";
 import { usdLabel } from "./usd";
 
 const CHECK_EVERY_MS = 60_000;
 const PREF_KEY = "gta.notify-incoming";
+
+const amountOf = (e: EntryDto) =>
+  e.token ? `${fmtToken(e.token.amount)} ${e.token.symbol}` : `${trimEth(e.amountEth)} ETH`;
+const usdOf = (e: EntryDto, ethUsd: string | null) =>
+  e.token ? null : usdLabel(e.amountEth, ethUsd);
 
 export type NotifyState = "on" | "off" | "blocked" | "unsupported";
 
@@ -32,7 +37,7 @@ function permission(): NotifyState {
 }
 
 /**
- * Watches the chain for ETH arriving while the dashboard is open (also in a background tab):
+ * Watches the chain for ETH and $GTA arriving while the dashboard is open (also in a background tab):
  * syncs every minute, and for every new incoming entry calls `onIncoming` and, when the user
  * switched it on, shows a browser notification.
  */
@@ -72,7 +77,7 @@ export function useIncomingWatch(opts: {
           seen.current = new Set(o.recent.filter((e) => e.direction === "in").map((e) => e.hash));
         }
         const r = await api<SyncDto>("/api/books/sync", { body: {} });
-        if (stopped || r.incoming + r.internalIncoming === 0) return;
+        if (stopped || r.incoming + r.internalIncoming + r.tokenIncoming === 0) return;
         const o = await api<OverviewDto>("/api/overview");
         const fresh = o.recent.filter((e) => e.direction === "in" && !seen.current!.has(e.hash));
         fresh.forEach((e) => seen.current!.add(e.hash));
@@ -80,10 +85,10 @@ export function useIncomingWatch(opts: {
         latest.current.onIncoming(fresh, o);
         if (permission() === "on") {
           for (const e of fresh) {
-            const usd = usdLabel(e.amountEth, latest.current.ethUsd);
+            const usd = usdOf(e, latest.current.ethUsd);
             const who =
               e.contactName ?? (e.source === "internal" ? "a contract" : shortAddr(e.counterparty));
-            new Notification(`+${trimEth(e.amountEth)} ETH received`, {
+            new Notification(`+${amountOf(e)} received`, {
               body: `${usd ? `${usd} · ` : ""}from ${who}`,
               icon: "/icon.png",
               tag: e.hash,
@@ -108,7 +113,7 @@ export function useIncomingWatch(opts: {
 export function incomingToast(entries: EntryDto[], ethUsd: string | null): string {
   if (entries.length > 1) return `${entries.length} incoming transfers just landed`;
   const e = entries[0]!;
-  const usd = usdLabel(e.amountEth, ethUsd);
+  const usd = usdOf(e, ethUsd);
   const who = e.contactName ?? (e.source === "internal" ? "a contract" : shortAddr(e.counterparty));
-  return `+${trimEth(e.amountEth)} ETH${usd ? ` (${usd})` : ""} received from ${who}`;
+  return `+${amountOf(e)}${usd ? ` (${usd})` : ""} received from ${who}`;
 }

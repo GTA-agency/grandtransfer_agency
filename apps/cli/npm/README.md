@@ -30,7 +30,7 @@ gta balance                    # ETH balance (≈ USD) and your limits
 gta contacts add robinhood 0x… # save an address by name
 gta send 0.01 robinhood        # shows THE PLAN; type "yes", then your password
 gta chat                       # talk to the agent; every plan still needs your "yes"
-gta sync                       # pick up incoming ETH and sends made elsewhere
+gta sync                       # pick up incoming ETH, $GTA and sends made elsewhere
 gta books month                # recap: today | week | month | year | all
 gta history 20                 # latest transactions
 gta tag <hash> Food            # categorize

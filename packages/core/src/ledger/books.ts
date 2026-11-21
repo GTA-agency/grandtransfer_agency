@@ -2,7 +2,8 @@ import type { Address } from "viem";
 import { formatEth } from "../amount.ts";
 import { explorerTxUrl } from "../chain.ts";
 import { inTransaction, type Database } from "../db.ts";
-import type { LedgerEntry, LedgerStore } from "../ledger-store.ts";
+import { ledgerTxHash, type LedgerEntry, type LedgerStore } from "../ledger-store.ts";
+import { formatTokenAmount } from "../tokens.ts";
 
 export class BooksError extends Error {
   constructor(
@@ -304,10 +305,12 @@ export class Books {
       "note",
       "tx_hash",
       "explorer_url",
+      "token",
+      "token_amount",
     ];
     const lines = [header.map(csvField).join(",")];
     for (const e of this.ledger.between(wallet, period.from, period.to)) {
-      const real = !e.hash.startsWith("internal:");
+      const txHash = ledgerTxHash(e.hash);
       lines.push(
         [
           new Date(e.timestamp).toISOString(),
@@ -319,8 +322,10 @@ export class Books {
           e.contactName ?? (e.source === "internal" ? "contract transfer" : ""),
           e.category ?? "",
           e.note ?? "",
-          e.hash,
-          real ? explorerTxUrl(e.hash) : "",
+          txHash ?? e.hash,
+          txHash ? explorerTxUrl(txHash) : "",
+          e.token?.symbol ?? "",
+          e.token ? formatTokenAmount(e.token.amountUnits, e.token.decimals) : "",
         ]
           .map(csvField)
           .join(","),

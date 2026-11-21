@@ -29,6 +29,15 @@ export interface LedgerToken {
   amountUnits: bigint;
 }
 
+/**
+ * The real transaction hash of a ledger row. Incoming tokens are stored as
+ * `token:<tx hash>:<log index>` because one transaction can carry several transfers.
+ */
+export function ledgerTxHash(hash: string): string | undefined {
+  if (hash.startsWith("internal:")) return undefined;
+  return hash.startsWith("token:") ? hash.split(":")[1] : hash;
+}
+
 export interface LedgerSummary {
   inWei: bigint;
   outWei: bigint;
@@ -128,6 +137,49 @@ export class LedgerStore {
     });
   }
 
+  /** Record a token arrival found in the logs. Returns false if it's already in the books. */
+  recordTokenIncoming(e: {
+    hash: string;
+    wallet: Address;
+    counterparty: Address;
+    contactName: string | undefined;
+    token: LedgerToken;
+    blockNumber: number;
+    timestamp: number;
+  }): boolean {
+    return inTransaction(this.db, () => {
+      const added = this.insertSynced({
+        hash: e.hash,
+        direction: "in",
+        wallet: e.wallet,
+        counterparty: e.counterparty,
+        contactName: e.contactName,
+        amountWei: 0n,
+        feeWei: undefined,
+        status: "confirmed",
+        blockNumber: e.blockNumber,
+        timestamp: e.timestamp,
+        source: "sync",
+      });
+      if (added) {
+        this.db
+          .prepare(
+            `INSERT OR IGNORE INTO token_transfers (tx_hash, wallet, token, symbol, decimals, amount_units)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+          )
+          .run(
+            e.hash,
+            e.wallet,
+            e.token.address,
+            e.token.symbol,
+            e.token.decimals,
+            e.token.amountUnits.toString(),
+          );
+      }
+      return added;
+    });
+  }
+
   /** Token units sent since `sinceMs`, pending or confirmed (failed ones don't count). */
   sumTokenOutgoingSince(wallet: Address, token: Address, sinceMs: number): bigint {
     const rows = this.db
@@ -157,7 +209,8 @@ export class LedgerStore {
     if (rows.length === 0) return entries;
     const byHash = new Map(rows.map((r) => [r.tx_hash, r]));
     return entries.map((e) => {
-      const t = e.direction === "out" ? byHash.get(e.hash) : undefined;
+      const t =
+        e.direction === "out" || e.hash.startsWith("token:") ? byHash.get(e.hash) : undefined;
       if (!t) return e;
       return {
         ...e,

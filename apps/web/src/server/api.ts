@@ -269,7 +269,7 @@ const LLM_MAX_CHARS = 40_000;
 on("POST", /^\/api\/llm$/, async ({ s, session, body }) => {
   const address = session!.address;
   limit(s, `llm:${address.toLowerCase()}`, 40, 60_000);
-  s.quota.check(address);
+  s.quota.check(address, (await s.aiLimit(address)).limit);
   const b = await body();
   // CLI versions before the token update don't send this and can't run the newer tools.
   const current = b.toolset === 2;
@@ -335,7 +335,8 @@ on("GET", /^\/api\/overview$/, async ({ s, session, wallet }) => {
     /* the ETH balance is what matters here; the token line just stays hidden */
   }
   const sent = s.ledger.sumOutgoingSince(address, Date.now() - DAY_MS);
-  const ai = s.quota.usedToday(address);
+  const allowance = await s.aiLimit(address);
+  const ai = s.quota.usedToday(address, allowance.limit);
   const body: OverviewDto = {
     address,
     explorerUrl: explorerAddressUrl(address),
@@ -349,7 +350,8 @@ on("GET", /^\/api\/overview$/, async ({ s, session, wallet }) => {
     },
     recent: s.ledger.recent(address, 6).map(entryDto),
     lastSyncedBlock: wallet!.sync.getCheckpoint(address)?.lastBlock ?? null,
-    aiMessages: ai.limit > 0 ? { used: ai.messages, limit: ai.limit } : null,
+    aiMessages:
+      ai.limit > 0 ? { used: ai.messages, limit: ai.limit, holder: allowance.holder } : null,
     gtaBalance,
   };
   return json(body);
@@ -358,7 +360,8 @@ on("GET", /^\/api\/overview$/, async ({ s, session, wallet }) => {
 on("POST", /^\/api\/chat$/, async ({ s, session, body }) => {
   const text = str(await body(), "text", { max: 2000 });
   limit(s, `chat:${session!.address.toLowerCase()}`, 10, 60_000);
-  s.quota.check(session!.address); // daily AI allowance (per wallet + overall budget)
+  // daily AI allowance (per wallet + overall budget)
+  s.quota.check(session!.address, (await s.aiLimit(session!.address)).limit);
   const r = await s.agent(session!).send(text);
   if (r.usage.calls > 0) s.quota.record(session!.address, r.usage.costUsd);
   const reply: ChatReplyDto = {
@@ -509,6 +512,7 @@ on("POST", /^\/api\/books\/sync$/, async ({ s, session, wallet }) => {
     incoming: r.incoming,
     outgoingExternal: r.outgoingExternal,
     internalIncoming: r.internalIncoming,
+    tokenIncoming: r.tokenIncoming,
     settledPending: r.settledPending,
     dropped: r.dropped,
     partial: r.partial,

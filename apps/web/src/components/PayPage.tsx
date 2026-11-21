@@ -101,13 +101,6 @@ function PayFlow({ request }: { request: PaymentRequest }) {
         <>
           <p className="pay-next">Connect your wallet to review this payment.</p>
           <WalletChoices onSignedIn={load} tone="hot" />
-          <div className="pay-mobile">
-            <p>On a phone? Copy this link and open it in your wallet app&apos;s browser.</p>
-            <CopyButton
-              text={buildPaymentLink(window.location.origin, request)}
-              label="Copy this link"
-            />
-          </div>
         </>
       ) : ownLink ? (
         <div className="pay-own">

@@ -3,6 +3,7 @@ import {
   explorerTxUrl,
   formatEth,
   formatTokenAmount,
+  ledgerTxHash,
   type ContactProposal,
   type LedgerEntry,
   type Recap,
@@ -49,7 +50,7 @@ export function proposalDto(p: ContactProposal): ProposalDto {
 }
 
 export function entryDto(e: LedgerEntry): EntryDto {
-  const internal = e.hash.startsWith("internal:");
+  const txHash = ledgerTxHash(e.hash);
   return {
     hash: e.hash,
     direction: e.direction,
@@ -63,7 +64,7 @@ export function entryDto(e: LedgerEntry): EntryDto {
     category: e.category ?? null,
     note: e.note ?? null,
     source: e.source,
-    explorerUrl: internal ? explorerAddressUrl(e.counterparty) : explorerTxUrl(e.hash),
+    explorerUrl: txHash ? explorerTxUrl(txHash) : explorerAddressUrl(e.counterparty),
     token: e.token
       ? { symbol: e.token.symbol, amount: formatTokenAmount(e.token.amountUnits, e.token.decimals) }
       : null,

@@ -25,7 +25,7 @@ interface Props {
   onOutcome: (draft: DraftDto, outcome: SendOutcome) => void;
   onContactsChanged: () => void;
   /** Today's agent messages when a daily quota applies. */
-  aiMessages?: { used: number; limit: number } | null;
+  aiMessages?: { used: number; limit: number; holder: boolean } | null;
   onAnswered?: () => void;
 }
 
@@ -186,6 +186,7 @@ export const ThePlan = forwardRef<ThePlanHandle, Props>(function ThePlan(
                     <span className="quota" title="Agent messages left today (resets 00:00 UTC)">
                       · {Math.max(0, aiMessages.limit - aiMessages.used)}/{aiMessages.limit} left
                       today
+                      {aiMessages.holder && <b className="quota-holder">Holder</b>}
                     </span>
                   )}
                 </div>

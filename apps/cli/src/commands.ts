@@ -7,6 +7,7 @@ import {
   explorerTxUrl,
   formatEth,
   formatTokenAmount,
+  ledgerTxHash,
   planAmount,
   readUsageTotals,
   type PeriodPreset,
@@ -391,10 +392,10 @@ export async function sync({ ctx, out }: CommandEnv, args: string[]): Promise<vo
       out.line(ok(`Tracking starts at block ${r.toBlock}. New activity will show up from now on.`));
       return;
     }
-    const found = r.incoming + r.outgoingExternal + r.internalIncoming;
+    const found = r.incoming + r.outgoingExternal + r.internalIncoming + r.tokenIncoming;
     out.line(ok(`Up to date at block ${r.toBlock}.`));
     out.line(
-      `  ${found === 0 ? c.dim("No new transactions.") : `${c.lime(String(r.incoming))} received · ${r.outgoingExternal} sent elsewhere · ${r.internalIncoming} via contracts`}` +
+      `  ${found === 0 ? c.dim("No new transactions.") : `${c.lime(String(r.incoming))} received · ${r.outgoingExternal} sent elsewhere · ${r.internalIncoming} via contracts · ${r.tokenIncoming} $GTA in`}` +
         (r.settledPending ? ` · ${r.settledPending} pending settled` : "") +
         (r.dropped ? ` · ${r.dropped} dropped by the network (nothing moved)` : ""),
     );
@@ -499,7 +500,7 @@ export async function history({ ctx, out }: CommandEnv, args: string[]): Promise
     );
     out.line(
       c.dim(
-        `                  ${shortHash(e.hash)}${e.hash.startsWith("internal:") ? "" : `  ${explorerTxUrl(e.hash)}`}`,
+        `                  ${shortHash(ledgerTxHash(e.hash) ?? e.hash)}${ledgerTxHash(e.hash) ? `  ${explorerTxUrl(ledgerTxHash(e.hash)!)}` : ""}`,
       ),
     );
   }

@@ -1,5 +1,7 @@
 "use client";
 import { useState } from "react";
+import { GTA_HOLDER_PERK } from "@gta/core/chain";
+import { fmtToken } from "@/lib/format";
 import { TOKEN_CA, TOKEN_EXPLORER_URL, TOKEN_LIVE } from "@/shared/token";
 import { CoinSpinner } from "./CoinSpinner";
 import { Footer } from "./Footer";
@@ -117,7 +119,11 @@ export function TokenPage() {
       />
 
       <main id="top" className="shell tk">
-        <section ref={heroRef} className={`tk-hero parallax${TOKEN_LIVE ? " live" : ""}`} aria-labelledby="tk-title">
+        <section
+          ref={heroRef}
+          className={`tk-hero parallax${TOKEN_LIVE ? " live" : ""}`}
+          aria-labelledby="tk-title"
+        >
           <Scene variant="sunset" seed={5} palms="both" sunSize={1.35} sunX={0.5} horizon={330} />
           <div className="vignette" />
           <div className="tk-glow" aria-hidden="true" />
@@ -128,7 +134,8 @@ export function TokenPage() {
 
           <div className="tk-body">
             <span className="hero-badge">
-              <span className="dot" /> {TOKEN_LIVE ? "Live on Robinhood Chain" : "Launching on Robinhood Chain"}
+              <span className="dot" />{" "}
+              {TOKEN_LIVE ? "Live on Robinhood Chain" : "Launching on Robinhood Chain"}
             </span>
             <CoinSpinner className="tk-coin" />
             <h1 id="tk-title" className="tk-title">
@@ -138,7 +145,9 @@ export function TokenPage() {
             {TOKEN_LIVE ? (
               <>
                 <ContractAddress />
-                <p className="tk-sub">This is the only official $GTA address. Check it here before you do anything.</p>
+                <p className="tk-sub">
+                  This is the only official $GTA address. Check it here before you do anything.
+                </p>
               </>
             ) : (
               <p className="tk-sub">
@@ -193,10 +202,23 @@ export function TokenPage() {
           </ol>
         </section>
 
+        {TOKEN_LIVE && (
+          <section className="tk-perk reveal" aria-labelledby="tk-perk-title">
+            <p className="eyebrow">Holder perk</p>
+            <h2 id="tk-perk-title">More time with your agent</h2>
+            <p>
+              Hold {fmtToken(GTA_HOLDER_PERK.minTokens)}+ $GTA in the wallet you connect and get{" "}
+              {GTA_HOLDER_PERK.messagesPerDay} agent messages a day.
+            </p>
+          </section>
+        )}
+
         <aside className="tk-warning reveal" aria-labelledby="tk-warning-title">
           <div className="tk-tape" aria-hidden="true" />
           <div className="tk-warning-body">
-            <h2 id="tk-warning-title">{TOKEN_LIVE ? "Only one address is ours" : "Heads up: there is no $GTA yet"}</h2>
+            <h2 id="tk-warning-title">
+              {TOKEN_LIVE ? "Only one address is ours" : "Heads up: there is no $GTA yet"}
+            </h2>
             {TOKEN_LIVE ? (
               <p>
                 Any other contract using the $GTA name is not us, even if it looks the same. Ignore

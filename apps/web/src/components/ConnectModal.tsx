@@ -1,8 +1,44 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
+import { MOBILE_WALLETS, isMobileBrowser } from "@/lib/mobile-wallets";
+import { CopyButton } from "./CopyButton";
 import { IconArrow, IconX } from "./Icons";
 import { Scene } from "./Scene";
 import { useWalletSignIn, walletLabel } from "./wallet-signin";
+
+const noSubscribe = () => () => {};
+const useIsMobile = () =>
+  useSyncExternalStore(
+    noSubscribe,
+    () => isMobileBrowser(navigator.userAgent, navigator.maxTouchPoints),
+    () => false,
+  );
+
+/** On a phone there is no extension: open this same page inside the wallet app's browser. */
+function MobileWallets({ tone }: { tone: string }) {
+  const page = new URL(window.location.href);
+  page.hash = "";
+  return (
+    <>
+      <p className="mobile-wallet-note">Open this page in your wallet app:</p>
+      {MOBILE_WALLETS.map((w) => (
+        <a
+          key={w.id}
+          className={`btn ${tone} block wallet-btn`}
+          href={w.link(page)}
+          rel="noreferrer noopener"
+        >
+          <span>Open in {w.name}</span>
+          <IconArrow className="arrow" />
+        </a>
+      ))}
+      <div className="mobile-wallet-other">
+        <p>Another wallet? Copy this link and open it in its browser.</p>
+        <CopyButton text={page.href} label="Copy this link" />
+      </div>
+    </>
+  );
+}
 
 /** Wallet buttons, shared by the modal and the landing's final call to action. */
 export function WalletChoices({
@@ -13,9 +49,12 @@ export function WalletChoices({
   tone?: string;
 }) {
   const { choices, signIn, busy, error } = useWalletSignIn(onSignedIn);
+  const mobile = useIsMobile();
   return (
     <div className="wallet-list">
-      {choices.length === 0 ? (
+      {choices.length === 0 && mobile ? (
+        <MobileWallets tone={tone} />
+      ) : choices.length === 0 ? (
         <div className="no-wallet">
           <strong>No wallet extension found.</strong> Install Bitget Wallet, MetaMask or any EVM
           wallet in this browser, then reload the page.

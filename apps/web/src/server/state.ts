@@ -1,14 +1,17 @@
 import { randomBytes } from "node:crypto";
-import type { Address, PublicClient } from "viem";
+import { parseUnits, type Address, type PublicClient } from "viem";
 import {
   AddressBook,
   AiQuota,
   EthUsdPrice,
   Books,
+  GTA_HOLDER_PERK,
+  GTA_TOKEN,
   LOCAL_OWNER,
   LedgerStore,
   LedgerSync,
   OpenRouterClient,
+  RoutedLlmClient,
   TransferService,
   WalletAgent,
   createChainClient,
@@ -40,6 +43,7 @@ export const SESSION_IDLE_MS = 12 * 60 * 60_000;
 const MAX_AGENTS = 10_000;
 const MAX_WALLETS = 2_000;
 const MAX_CHALLENGES = 5_000;
+const HOLDER_CHECK_MS = 5 * 60_000;
 
 export interface Session {
   token: string;
@@ -83,6 +87,7 @@ export class ServerState {
   private readonly usageLog: UsageLog;
   private readonly agents = new Map<string, WalletAgent>();
   private readonly wallets = new Map<string, WalletContext>();
+  private readonly holders = new Map<string, { holder: boolean; until: number }>();
   private readonly challenges = new Map<
     string,
     { message: string; origin: string; expiresAt: number }
@@ -108,11 +113,47 @@ export class ServerState {
     this.tokens = createViemTokenOps(this.client);
     this.history = createViemHistory(this.config.archiveRpcUrl);
     this.quota = new AiQuota(this.db, this.web.ai);
-    this.llm = new OpenRouterClient({
+    const main = new OpenRouterClient({
       apiKey: this.config.openRouterApiKey,
       model: this.config.openRouterModel,
     });
+    this.llm = this.web.lightModel
+      ? new RoutedLlmClient(
+          main,
+          new OpenRouterClient({
+            apiKey: this.config.openRouterApiKey,
+            model: this.web.lightModel,
+          }),
+        )
+      : main;
     this.usageLog = deps.usageLog ?? { record: () => undefined };
+  }
+
+  /**
+   * Today's agent message allowance. Wallets holding enough $GTA get more. The balance is read
+   * at most every few minutes; if it can't be read, the last known answer (or the normal limit)
+   * applies, so a network problem never grants the perk.
+   */
+  async aiLimit(address: Address): Promise<{ limit: number; holder: boolean }> {
+    const base = this.web.ai.messagesPerWalletPerDay;
+    if (base === 0 || GTA_HOLDER_PERK.messagesPerDay <= base) return { limit: base, holder: false };
+    const key = address.toLowerCase();
+    const now = Date.now();
+    let cached = this.holders.get(key);
+    if (!cached || now > cached.until) {
+      try {
+        const held = await this.tokens.balanceOf(GTA_TOKEN.address, address);
+        const min = parseUnits(GTA_HOLDER_PERK.minTokens, GTA_TOKEN.decimals);
+        cached = { holder: held >= min, until: now + HOLDER_CHECK_MS };
+        if (this.holders.size >= MAX_WALLETS) this.holders.clear();
+        this.holders.set(key, cached);
+      } catch {
+        /* keep whatever we knew */
+      }
+    }
+    return cached?.holder
+      ? { limit: GTA_HOLDER_PERK.messagesPerDay, holder: true }
+      : { limit: base, holder: false };
   }
 
   /** One model call on the server's key, for the CLI's hosted agent (see /api/llm). */

@@ -22,7 +22,7 @@ export interface OverviewDto {
   recent: EntryDto[];
   lastSyncedBlock: number | null;
   /** Today's agent messages when a daily quota applies; null when unlimited. */
-  aiMessages: { used: number; limit: number } | null;
+  aiMessages: { used: number; limit: number; holder: boolean } | null;
   /** The wallet's $GTA, exact; null when it couldn't be read. */
   gtaBalance: string | null;
 }
@@ -158,6 +158,7 @@ export interface SyncDto {
   incoming: number;
   outgoingExternal: number;
   internalIncoming: number;
+  tokenIncoming: number;
   settledPending: number;
   dropped: number;
   /** More blocks to go: call sync again to continue. */
